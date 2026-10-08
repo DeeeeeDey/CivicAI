@@ -1,0 +1,223 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CITIZEN
+  OFFICER
+  WORKER
+  ADMIN
+}
+
+enum ComplaintStatus {
+  REPORTED
+  UNDER_REVIEW
+  ASSIGNED
+  IN_PROGRESS
+  RESOLVED
+  VERIFIED
+  REJECTED
+  REOPENED
+}
+
+model User {
+  id               String            @id @default(uuid())
+  name             String
+  email            String            @unique
+  password_hash    String
+  role             Role              @default(CITIZEN)
+  phone            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  complaints           Complaint[]       @relation("CitizenComplaints")
+  assignmentsAsOfficer Assignment[]      @relation("OfficerAssignments")
+  assignmentsAsWorker  Assignment[]      @relation("WorkerAssignments")
+  resolutions          Resolution[]
+  comments             Comment[]
+  notifications        Notification[]
+  supporters           ComplaintSupporter[]
+  auditLogs            AuditLog[]
+}
+
+model Department {
+  id               String            @id @default(uuid())
+  name             String            @unique
+  description      String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  categories       Category[]
+  complaints       Complaint[]
+  slaRules         SlaRule[]
+}
+
+model Ward {
+  id               String            @id @default(uuid())
+  name             String            @unique
+  polygon          String?           // For bounding box/polygon geometry if needed
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  complaints       Complaint[]
+}
+
+model Category {
+  id               String            @id @default(uuid())
+  name             String            @unique
+  description      String?
+  departmentId     String?
+  department       Department?       @relation(fields: [departmentId], references: [id])
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  complaints       Complaint[]
+  slaRules         SlaRule[]
+}
+
+model Complaint {
+  id               String            @id @default(uuid())
+  publicId         String            @unique // e.g., CIV-xxxx
+  citizenId        String
+  citizen          User              @relation("CitizenComplaints", fields: [citizenId], references: [id])
+  categoryId       String?
+  category         Category?         @relation(fields: [categoryId], references: [id])
+  wardId           String?
+  ward             Ward?             @relation(fields: [wardId], references: [id])
+  departmentId     String?
+  department       Department?       @relation(fields: [departmentId], references: [id])
+  
+  description      String
+  latitude         Float
+  longitude        Float
+  address          String?
+  imageUrl         String?
+  
+  severity         Int               @default(1) // 1-5
+  status           ComplaintStatus   @default(REPORTED)
+  
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  aiAnalysis       AiAnalysis?
+  assignments      Assignment[]
+  resolutions      Resolution[]
+  statusHistory    StatusHistory[]
+  comments         Comment[]
+  supporters       ComplaintSupporter[]
+  auditLogs        AuditLog[]
+
+  @@index([latitude, longitude])
+  @@index([status])
+  @@index([severity])
+}
+
+model ComplaintSupporter {
+  id               String            @id @default(uuid())
+  complaintId      String
+  complaint        Complaint         @relation(fields: [complaintId], references: [id])
+  userId           String
+  user             User              @relation(fields: [userId], references: [id])
+  createdAt        DateTime          @default(now())
+
+  @@unique([complaintId, userId])
+}
+
+model AiAnalysis {
+  id                    String            @id @default(uuid())
+  complaintId           String            @unique
+  complaint             Complaint         @relation(fields: [complaintId], references: [id])
+  predictedCategory     String?
+  confidence            Float?
+  severityScore         Int?
+  severityExplanation   String?
+  duplicateProbability  Float?
+  duplicateOf           String?           // Stores complaint publicId or id
+  modelVersion          String?
+  createdAt             DateTime          @default(now())
+}
+
+model Assignment {
+  id               String            @id @default(uuid())
+  complaintId      String
+  complaint        Complaint         @relation(fields: [complaintId], references: [id])
+  officerId        String
+  officer          User              @relation("OfficerAssignments", fields: [officerId], references: [id])
+  workerId         String
+  worker           User              @relation("WorkerAssignments", fields: [workerId], references: [id])
+  assignedAt       DateTime          @default(now())
+  completedAt      DateTime?
+}
+
+model Resolution {
+  id                 String            @id @default(uuid())
+  complaintId        String
+  complaint          Complaint         @relation(fields: [complaintId], references: [id])
+  workerId           String
+  worker             User              @relation(fields: [workerId], references: [id])
+  proofImageUrl      String?
+  description        String?
+  latitude           Float?
+  longitude          Float?
+  verificationStatus String?           // e.g., PENDING, VERIFIED, REJECTED
+  citizenRating      Int?
+  citizenFeedback    String?
+  createdAt          DateTime          @default(now())
+}
+
+model StatusHistory {
+  id               String            @id @default(uuid())
+  complaintId      String
+  complaint        Complaint         @relation(fields: [complaintId], references: [id])
+  status           ComplaintStatus
+  notes            String?
+  createdAt        DateTime          @default(now())
+}
+
+model Comment {
+  id               String            @id @default(uuid())
+  complaintId      String
+  complaint        Complaint         @relation(fields: [complaintId], references: [id])
+  userId           String
+  user             User              @relation(fields: [userId], references: [id])
+  content          String
+  createdAt        DateTime          @default(now())
+}
+
+model Notification {
+  id               String            @id @default(uuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id])
+  title            String
+  message          String
+  read             Boolean           @default(false)
+  link             String?
+  createdAt        DateTime          @default(now())
+}
+
+model AuditLog {
+  id               String            @id @default(uuid())
+  userId           String?
+  user             User?             @relation(fields: [userId], references: [id])
+  complaintId      String?
+  complaint        Complaint?        @relation(fields: [complaintId], references: [id])
+  action           String            // e.g., STATUS_CHANGE, SEVERITY_OVERRIDE
+  details          String            // JSON string with before/after etc
+  createdAt        DateTime          @default(now())
+}
+
+model SlaRule {
+  id               String            @id @default(uuid())
+  departmentId     String?
+  department       Department?       @relation(fields: [departmentId], references: [id])
+  categoryId       String?
+  category         Category?         @relation(fields: [categoryId], references: [id])
+  severity         Int?              // Apply to specific severity
+  maxResolutionTimeHours Int         // Maximum hours to resolve
+  createdAt        DateTime          @default(now())
+}
