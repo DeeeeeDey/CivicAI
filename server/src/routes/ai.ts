@@ -25,7 +25,7 @@ router.post('/preview', authenticate, upload.single('image'), async (req, res, n
     }
 
     // 1. Classify
-    const catRes = await fetch('http://127.0.0.1:8000/ai/classify', {
+    const catRes = await fetch((process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000') + '/ai/classify', {
        method: 'POST',
        body: fdClassify
     }).then(r => r.json());
@@ -50,7 +50,7 @@ router.post('/preview', authenticate, upload.single('image'), async (req, res, n
         fdSeverity.append('image', blob, file.originalname);
     }
 
-    const sevRes = await fetch('http://127.0.0.1:8000/ai/severity', {
+    const sevRes = await fetch((process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000') + '/ai/severity', {
        method: 'POST',
        body: fdSeverity
     }).then(r => r.json());
@@ -58,7 +58,7 @@ router.post('/preview', authenticate, upload.single('image'), async (req, res, n
     // 3. Department
     const fdDept = new globalThis.FormData();
     fdDept.append('category', detectedCategory);
-    const deptRes = await fetch('http://127.0.0.1:8000/ai/department', {
+    const deptRes = await fetch((process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000') + '/ai/department', {
        method: 'POST',
        body: fdDept
     }).then(r => r.json());
@@ -82,7 +82,7 @@ router.post('/preview', authenticate, upload.single('image'), async (req, res, n
         fdDup.append('image', blob, file.originalname);
     }
 
-    const dupRes = await fetch('http://127.0.0.1:8000/ai/duplicate-check', {
+    const dupRes = await fetch((process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000') + '/ai/duplicate-check', {
        method: 'POST',
        body: fdDup
     }).then(r => r.json());

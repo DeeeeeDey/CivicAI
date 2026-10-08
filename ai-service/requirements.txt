@@ -3,7 +3,5 @@ uvicorn
 pydantic
 scikit-learn
 transformers
-torch
-torchvision
 Pillow
 python-multipart

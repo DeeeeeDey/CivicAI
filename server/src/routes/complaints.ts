@@ -143,7 +143,7 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
        const blob = new globalThis.Blob([file.buffer], { type: file.mimetype });
        fdClassify.append('image', blob, file.originalname);
     }
-    const catRes = await fetch('http://127.0.0.1:8000/ai/classify', { method: 'POST', body: fdClassify }).then(r => r.json());
+    const catRes = await fetch((process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000') + '/ai/classify', { method: 'POST', body: fdClassify }).then(r => r.json());
     
     // Call severity
     const fdSeverity = new globalThis.FormData();
@@ -156,7 +156,7 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
        const blob = new globalThis.Blob([file.buffer], { type: file.mimetype });
        fdSeverity.append('image', blob, file.originalname);
     }
-    const sevRes = await fetch('http://127.0.0.1:8000/ai/severity', { method: 'POST', body: fdSeverity }).then(r => r.json());
+    const sevRes = await fetch((process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000') + '/ai/severity', { method: 'POST', body: fdSeverity }).then(r => r.json());
 
     // 4. Create Complaint
     const complaint = await prisma.complaint.create({

@@ -12,6 +12,7 @@ import { ScrollToTop } from './components/ScrollToTop';
 
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { DesignSystem } from './pages/DesignSystem';
 import { Transparency } from './pages/Transparency';
 import { Track } from './pages/Track';
@@ -66,6 +67,7 @@ function App() {
               <Route element={<PublicLayout />}>
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={user ? <Navigate to={`/${user.role.toLowerCase()}/dashboard`} replace /> : <Login />} />
+                <Route path="/register" element={user ? <Navigate to={`/${user.role.toLowerCase()}/dashboard`} replace /> : <Register />} />
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/transparency" element={<Transparency />} />
                 <Route path="/track" element={<Track />} />

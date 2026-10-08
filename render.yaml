@@ -1,0 +1,37 @@
+services:
+  # ----------------------------------------
+  # 1. Express Node.js Backend
+  # ----------------------------------------
+  - type: web
+    name: civicai-server
+    env: node
+    rootDir: server
+    buildCommand: npm install && npx prisma generate
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # Set this in the Render Dashboard from Supabase!
+      - key: JWT_SECRET
+        generateValue: true
+      - key: AI_SERVICE_URL
+        fromService:
+          type: web
+          name: civicai-ai
+          envVarKey: RENDER_EXTERNAL_URL
+
+  # ----------------------------------------
+  # 2. Python FastAPI AI Microservice
+  # ----------------------------------------
+  - type: web
+    name: civicai-ai
+    env: docker
+    rootDir: ai-service
+    dockerfilePath: Dockerfile
+    # IMPORTANT: The PyTorch + CLIP model requires at least 1GB - 2GB of RAM.
+    # The Starter plan (512MB) might OOM crash during inference. If it does, upgrade to Standard.
+    plan: starter 
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "true"
