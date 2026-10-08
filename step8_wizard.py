@@ -1,4 +1,6 @@
-import { useState, useRef } from 'react';
+import os
+
+content = """import { useState, useRef } from 'react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -339,3 +341,8 @@ export const ReportIssue = () => {
     </div>
   );
 };
+"""
+
+with open("client/src/pages/citizen/ReportIssue.tsx", "w") as f:
+    f.write(content)
+print("Updated ReportIssue.tsx")

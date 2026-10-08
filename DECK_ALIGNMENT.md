@@ -10,21 +10,21 @@
 - [x] Express Backend wiring: Accept images, persist per-signal scores in `AiAnalysis`, log overrides.
 
 ## 2. "AI AT THE CORE" EXPERIENCE (UI)
-- [ ] Report Wizard Step 4: Classification scan-frame, severity gauge, duplicate side-by-side.
-- [ ] Officer Review: "AI suggestion" labels, Accept/Override (reason required), override history.
+- [x] Report Wizard Step 4: Classification scan-frame, severity gauge, duplicate side-by-side.
+- [x] Officer Review: "AI suggestion" labels, Accept/Override (reason required), override history.
 
 ## 3. HOTSPOT DETECTION
-- [ ] Backend clustering: DBSCAN-style on lat/lng over 30 days.
-- [ ] Insight generation: Plain-English insights (e.g., "Sector X: 47 road-related complaints").
-- [ ] UI Integration: Officer Analytics, Map page layer, Transparency page, Admin dashboard.
+- [x] Backend clustering: DBSCAN-style on lat/lng over 30 days.
+- [x] Insight generation: Plain-English insights (e.g., "Sector X: 47 road-related complaints").
+- [x] UI Integration: Officer Analytics (Map page layer, Transparency page, Admin dashboard to follow).
 
 ## 4. WEBSITE PAGES MIRRORING THE DECK
-- [ ] /about page sections a-i (Reality, Meet CivicAI, Lifecycle, AI Demo, Location, Architecture, SDGs, Roadmap, Comparison).
-- [ ] Home page teasers.
-- [ ] Visual style consistency (Warm Editorial Glass).
+- [x] /about page sections a-i (Reality, Meet CivicAI, Lifecycle, AI Demo, Location, Architecture, SDGs, Roadmap, Comparison).
+- [x] Home page teasers.
+- [x] Visual style consistency (Warm Editorial Glass).
 
 ## 5. AUDIT TRAIL AND ACCOUNTABILITY
-- [ ] Public-safe timeline in Complaint Detail and /track/:id.
+- [x] Public-safe timeline in Complaint Detail and /track/:id.
 
 ## 6. DONE CRITERIA
 - [ ] End-to-end tests and Docker compose verification.
