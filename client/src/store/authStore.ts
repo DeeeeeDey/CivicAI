@@ -1,10 +1,10 @@
 import { create } from 'zustand';
+import { api } from '../api/axios';
 
 interface User {
   id: string;
   name: string;
-  role: 'CITIZEN' | 'OFFICER' | 'WORKER' | 'ADMIN';
-  email: string;
+  role: string;
 }
 
 interface AuthState {
@@ -22,7 +22,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   accessToken: null,
   isInitializing: true,
   login: (user, token) => set({ user, accessToken: token }),
-  logout: () => set({ user: null, accessToken: null }),
+  logout: async () => {
+    try { await api.post('/auth/logout'); } catch (e) {}
+    set({ user: null, accessToken: null });
+  },
   setToken: (token) => set({ accessToken: token }),
-  setInitializing: (val) => set({ isInitializing: val })
+  setInitializing: (val) => set({ isInitializing: val }),
 }));

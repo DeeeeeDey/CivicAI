@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import { Button } from '../components/ui/Button';
 import { Leaf, Menu, X, ArrowRight } from 'lucide-react';
 import { cn } from '../components/ui/GlassCard';
+import { LocationPill } from '../components/LocationPill';
 
 export const PublicLayout = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -21,6 +22,7 @@ export const PublicLayout = () => {
   const navItems = [
     { name: 'Home', path: '/' },
     { name: 'How it works', path: '/how-it-works' },
+    { name: 'Issue map', path: '/map' },
     { name: 'Transparency', path: '/transparency' },
     { name: 'Track', path: '/track' },
     { name: 'About', path: '/about' },
@@ -32,7 +34,7 @@ export const PublicLayout = () => {
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         className={cn(
-          "fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center justify-between px-6 py-3 transition-all duration-300 w-[95%] max-w-5xl rounded-full",
+          "fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex items-center justify-between px-6 py-3 transition-all duration-300 w-[95%] max-w-[1200px] rounded-full",
           scrolled ? "glass" : "bg-transparent"
         )}
       >
@@ -46,7 +48,7 @@ export const PublicLayout = () => {
           {navItems.map(item => {
             const isActive = location.pathname === item.path;
             return (
-              <Link key={item.path} to={item.path} className="relative px-4 py-2 text-[15px] font-medium text-ink-700 dark:text-ink-300 hover:text-ink-900 dark:hover:text-white transition-colors">
+              <Link key={item.path} to={item.path} className="relative px-3 py-2 text-[14px] lg:text-[15px] font-medium text-ink-700 dark:text-ink-300 hover:text-ink-900 dark:hover:text-white transition-colors whitespace-nowrap">
                 {isActive && (
                   <motion.div layoutId="nav-pill" className="absolute inset-0 bg-black/5 dark:bg-white/10 rounded-full" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
                 )}
@@ -57,6 +59,7 @@ export const PublicLayout = () => {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
+          <LocationPill />
           {user ? (
              <Link to={`/${user.role.toLowerCase()}/dashboard`}>
                 <Button>Go to dashboard</Button>

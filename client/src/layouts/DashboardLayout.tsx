@@ -3,7 +3,8 @@ import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../theme/ThemeProvider';
-import { LogOut, Home, FileText, CheckCircle, BarChart2, Users, Map as MapIcon, PlusCircle, Settings, Bell, Search, Leaf, Moon, Sun } from 'lucide-react';
+import { LogOut, Home, FileText, CheckCircle, BarChart2, Users, Map as MapIcon, PlusCircle, Settings, Bell, Search, Leaf, Moon, Sun, Menu } from 'lucide-react';
+import { LocationPill } from '../components/LocationPill';
 
 export const DashboardLayout = () => {
   const { user, logout } = useAuthStore();
@@ -127,6 +128,7 @@ export const DashboardLayout = () => {
            </div>
            
            <div className="flex items-center gap-3">
+              <LocationPill />
               <button className="p-2 text-ink-500 hover:bg-black/5 rounded-full"><Search size={20} /></button>
               <button className="p-2 text-ink-500 hover:bg-black/5 rounded-full relative">
                  <Bell size={20} />

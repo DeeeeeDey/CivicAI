@@ -1,9 +1,22 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CivicAI Design System</title>
+    <title>CivicAI</title>
+    <script>
+      (function() {
+        try {
+          var localTheme = localStorage.getItem('theme');
+          if (localTheme) {
+            document.documentElement.setAttribute('data-theme', localTheme);
+            if (localTheme === 'dark') document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.setAttribute('data-theme', 'light');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

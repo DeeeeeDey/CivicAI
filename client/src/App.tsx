@@ -8,12 +8,19 @@ import { api } from './api/axios';
 import { PublicLayout } from './layouts/PublicLayout';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { ScrollToTop } from './components/ScrollToTop';
 
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { DesignSystem } from './pages/DesignSystem';
+import { Transparency } from './pages/Transparency';
+import { Track } from './pages/Track';
+import { About } from './pages/About';
+import { HowItWorks } from './pages/HowItWorks';
+import { MapPage } from './pages/MapPage';
 
 import { CitizenDashboard } from './pages/citizen/Dashboard';
+import { ReportIssue } from './pages/citizen/ReportIssue';
 import { OfficerDashboard } from './pages/officer/Dashboard';
 import { WorkerTasks } from './pages/worker/Tasks';
 
@@ -45,43 +52,62 @@ const AuthBootstrap = ({ children }: { children: React.ReactNode }) => {
 };
 
 function App() {
+  const user = useAuthStore(s => s.user);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthBootstrap>
           <div className="mesh-background"></div>
           <Router>
+            <ScrollToTop />
             <Routes>
               {/* Public Routes */}
               <Route element={<PublicLayout />}>
                 <Route path="/" element={<Home />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/design-system" element={<DesignSystem />} />
-                <Route path="/track" element={<div className="p-24 text-center text-2xl font-bold">Public Tracking Portal</div>} />
+                <Route path="/login" element={user ? <Navigate to={`/${user.role.toLowerCase()}/dashboard`} replace /> : <Login />} />
+                <Route path="/how-it-works" element={<HowItWorks />} />
+                <Route path="/transparency" element={<Transparency />} />
+                <Route path="/track" element={<Track />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/map" element={<MapPage />} />
+                
+                {import.meta.env.DEV && <Route path="/design-system" element={<DesignSystem />} />}
               </Route>
 
               {/* Protected Dashboards */}
               <Route element={<DashboardLayout />}>
                  <Route element={<ProtectedRoute allowedRoles={['CITIZEN']} />}>
                    <Route path="/citizen/dashboard" element={<CitizenDashboard />} />
-                   <Route path="/citizen/report" element={<div className="p-12 text-center">Wizard Shell</div>} />
-                   <Route path="/citizen/complaints" element={<div className="p-12 text-center">My Complaints List</div>} />
+                   <Route path="/citizen/report" element={<ReportIssue />} />
+                   <Route path="/citizen/complaints" element={<div className="p-12 text-center text-ink-900">My Complaints List (To do)</div>} />
+                   <Route path="/citizen/map" element={<div className="p-12 text-center text-ink-900">Community Map (To do)</div>} />
+                   <Route path="/citizen/notifications" element={<div className="p-12 text-center text-ink-900">Notifications</div>} />
+                   <Route path="/citizen/settings" element={<div className="p-12 text-center text-ink-900">Settings</div>} />
                  </Route>
                  
-                 <Route element={<ProtectedRoute allowedRoles={['OFFICER', 'ADMIN']} />}>
+                 <Route element={<ProtectedRoute allowedRoles={['OFFICER']} />}>
                    <Route path="/officer/dashboard" element={<OfficerDashboard />} />
-                   <Route path="/officer/queue" element={<div className="p-12 text-center">Officer Review Queue</div>} />
-                   <Route path="/officer/map" element={<div className="p-12 text-center">Live Map</div>} />
+                   <Route path="/officer/queue" element={<div className="p-12 text-center text-ink-900">Complaint Queue (To do)</div>} />
+                   <Route path="/officer/verification" element={<div className="p-12 text-center text-ink-900">Verification Queue (To do)</div>} />
+                   <Route path="/officer/duplicates" element={<div className="p-12 text-center text-ink-900">Duplicates Manager</div>} />
+                   <Route path="/officer/workers" element={<div className="p-12 text-center text-ink-900">Workers List</div>} />
+                   <Route path="/officer/analytics" element={<div className="p-12 text-center text-ink-900">Analytics</div>} />
+                   <Route path="/officer/settings" element={<div className="p-12 text-center text-ink-900">Settings</div>} />
                  </Route>
 
                  <Route element={<ProtectedRoute allowedRoles={['WORKER']} />}>
                    <Route path="/worker/dashboard" element={<WorkerTasks />} />
+                   <Route path="/worker/history" element={<div className="p-12 text-center text-ink-900">Task History</div>} />
+                   <Route path="/worker/profile" element={<div className="p-12 text-center text-ink-900">Profile</div>} />
                  </Route>
 
                  <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
-                   <Route path="/admin/dashboard" element={<div className="p-12 text-center">Admin Analytics</div>} />
-                   <Route path="/admin/users" element={<div className="p-12 text-center">User Management</div>} />
-                   <Route path="/admin/settings" element={<div className="p-12 text-center">Settings</div>} />
+                   <Route path="/admin/dashboard" element={<div className="p-12 text-center text-ink-900">Admin Dashboard</div>} />
+                   <Route path="/admin/users" element={<div className="p-12 text-center text-ink-900">Users</div>} />
+                   <Route path="/admin/departments" element={<div className="p-12 text-center text-ink-900">Departments</div>} />
+                   <Route path="/admin/logs" element={<div className="p-12 text-center text-ink-900">Audit Logs</div>} />
+                   <Route path="/admin/settings" element={<div className="p-12 text-center text-ink-900">Settings</div>} />
                  </Route>
               </Route>
               
