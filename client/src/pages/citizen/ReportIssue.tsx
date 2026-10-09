@@ -6,6 +6,7 @@ import { Badge } from '../../components/ui/Badge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, MapPin, AlignLeft, Bot, CheckCircle2, ArrowRight, ArrowLeft, Image as ImageIcon, AlertTriangle, Copy, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/axios';
 import { useLocationStore } from '../../store/locationStore';
 
@@ -19,6 +20,7 @@ const steps = [
 
 export const ReportIssue = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState(1);
   const [desc, setDesc] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -77,6 +79,7 @@ export const ReportIssue = () => {
       await api.post('/complaints', fd, {
          headers: { 'Content-Type': 'multipart/form-data' }
       });
+      queryClient.invalidateQueries({ queryKey: ['complaints'] });
       setCurrentStep(5);
     } catch (err) {
       alert("Error submitting complaint");
@@ -307,7 +310,7 @@ export const ReportIssue = () => {
               <h2 className="text-3xl font-bold text-ink-900 mb-2">Report Submitted!</h2>
               <p className="text-ink-500 mb-8 max-w-md">Your issue has been logged, analyzed by AI, and routed to the correct department.</p>
               <div className="flex gap-4">
-                 <Button onClick={() => navigate('/citizen')}>Go to Dashboard</Button>
+                 <Button onClick={() => navigate('/citizen/dashboard')}>Go to Dashboard</Button>
                  <Button variant="secondary" onClick={() => window.location.reload()}>Report Another</Button>
               </div>
             </motion.div>
