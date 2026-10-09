@@ -123,7 +123,7 @@ router.get('/public/track/:publicId', async (req, res, next) => {
   try {
     const complaint = await prisma.complaint.findUnique({
       where: { publicId: req.params.publicId },
-      include: { category: true, statusHistory: { orderBy: { createdAt: 'desc' } } }
+      include: { category: true, statusHistory: { orderBy: { createdAt: 'desc' } }, resolutions: true }
     });
     if (!complaint) return res.status(404).json({ error: 'Ticket not found' });
     res.json({

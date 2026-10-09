@@ -74,6 +74,16 @@ export const Track = () => {
                               <img src={complaint.imageUrl} className="w-full h-full object-cover" />
                            </div>
                         )}
+                        
+                        {complaint.resolution && complaint.resolution.proofImageUrl && (
+                           <div className="mt-6 p-4 bg-success/10 border border-success/30 rounded-xl">
+                              <h3 className="text-success font-bold mb-2 flex items-center gap-2"><CheckCircle2 size={16}/> Resolution Proof</h3>
+                              <p className="text-sm text-ink-700 mb-3">{complaint.resolution.description || 'Issue has been successfully resolved.'}</p>
+                              <div className="h-48 w-full rounded-xl overflow-hidden border border-success/20">
+                                 <img src={complaint.resolution.proofImageUrl} className="w-full h-full object-cover" />
+                              </div>
+                           </div>
+                        )}
                      </div>
                      <Badge color="danger">Severity {complaint.severity}</Badge>
                   </div>
