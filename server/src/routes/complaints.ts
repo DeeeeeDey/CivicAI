@@ -133,30 +133,20 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
     
     let wardRecord = ward ? await prisma.ward.findFirst({ where: { name: ward } }) : null;
 
-    // 3. Run AI classification/severity via ai-service preview
-    const FormDataNode = (await import('formdata-node')).FormData;
-    
-    // Call classify
-    const fdClassify = new globalThis.FormData();
-    fdClassify.append('description', description);
-    if (file) {
-       const blob = new globalThis.Blob([file.buffer], { type: file.mimetype });
-       fdClassify.append('image', blob, file.originalname);
+    // 3. Run AI classification/severity via Gemini
+    const { analyzeComplaintWithGemini } = await import('../utils/gemini');
+    let aiResult;
+    try {
+        aiResult = await analyzeComplaintWithGemini(description, parseFloat(latitude), parseFloat(longitude), category, file, []);
+    } catch (e) {
+        console.error("Gemini fallback triggered in complaint creation:", e);
+        aiResult = {
+           category: category,
+           confidence: 0.5,
+           severity: 3,
+           explanation: [{ factor: "System Offline", contribution: "+0", note: "Fallback mode active" }]
+        };
     }
-    const catRes = await fetch((process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000') + '/ai/classify', { method: 'POST', body: fdClassify }).then(r => r.json());
-    
-    // Call severity
-    const fdSeverity = new globalThis.FormData();
-    fdSeverity.append('category', category);
-    fdSeverity.append('description', description);
-    fdSeverity.append('latitude', String(latitude));
-    fdSeverity.append('longitude', String(longitude));
-    fdSeverity.append('duplicates_count', '0');
-    if (file) {
-       const blob = new globalThis.Blob([file.buffer], { type: file.mimetype });
-       fdSeverity.append('image', blob, file.originalname);
-    }
-    const sevRes = await fetch((process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000') + '/ai/severity', { method: 'POST', body: fdSeverity }).then(r => r.json());
 
     // 4. Create Complaint
     const complaint = await prisma.complaint.create({
@@ -169,7 +159,7 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
         description,
         latitude: parseFloat(latitude),
         longitude: parseFloat(longitude),
-        severity: sevRes.severity_score || 3,
+        severity: aiResult.severity || 3,
         status: 'REPORTED',
       }
     });
@@ -178,12 +168,12 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
     await prisma.aiAnalysis.create({
       data: {
         complaintId: complaint.id,
-        predictedCategory: catRes.top_categories?.[0]?.category || category,
-        confidence: catRes.top_categories?.[0]?.confidence || 0.5,
-        severityScore: sevRes.severity_score || 3,
-        severityExplanation: JSON.stringify(sevRes.explanation_factors || []),
-        duplicateProbability: 0,
-        modelVersion: catRes.model_version || "fallback"
+        predictedCategory: aiResult.category || category,
+        confidence: aiResult.confidence || 0.5,
+        severityScore: aiResult.severity || 3,
+        severityExplanation: JSON.stringify(aiResult.explanation || []),
+        duplicateProbability: aiResult.duplicate_probability || 0,
+        modelVersion: "gemini-1.5-flash"
       }
     });
 
