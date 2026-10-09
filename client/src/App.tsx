@@ -20,6 +20,7 @@ import { About } from './pages/About';
 import { HowItWorks } from './pages/HowItWorks';
 import { MapPage } from './pages/MapPage';
 
+import { AdminDashboard } from './pages/admin/Dashboard';
 import { CitizenDashboard } from './pages/citizen/Dashboard';
 import { MyComplaints } from './pages/citizen/MyComplaints';
 import { ReportIssue } from './pages/citizen/ReportIssue';
@@ -91,7 +92,7 @@ function App() {
                  
                  <Route element={<ProtectedRoute allowedRoles={['OFFICER']} />}>
                    <Route path="/officer/dashboard" element={<OfficerDashboard />} />
-                   <Route path="/officer/queue" element={<div className="p-12 text-center text-ink-900">Complaint Queue (To do)</div>} />
+                   <Route path="/officer/queue" element={<OfficerDashboard />} />
                    <Route path="/officer/verification" element={<div className="p-12 text-center text-ink-900">Verification Queue (To do)</div>} />
                    <Route path="/officer/duplicates" element={<div className="p-12 text-center text-ink-900">Duplicates Manager</div>} />
                    <Route path="/officer/workers" element={<div className="p-12 text-center text-ink-900">Workers List</div>} />
