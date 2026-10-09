@@ -5,6 +5,8 @@
 @import "@fontsource/inter/700.css";
 @import "@fontsource/instrument-serif/400-italic.css";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-bg-base: var(--bg-base);
   --color-surface: var(--surface);
