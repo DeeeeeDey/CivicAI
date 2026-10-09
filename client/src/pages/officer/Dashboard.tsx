@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -12,6 +12,7 @@ export const OfficerDashboard = () => {
   const [complaints, setComplaints] = useState<any[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [overrideReason, setOverrideReason] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -25,6 +26,7 @@ export const OfficerDashboard = () => {
       setComplaints(cRes.data.slice(0, 10)); // Just recent ones for review
     } catch(err) {
       console.error(err);
+      setError((err as any)?.response?.data?.error || err.message);
     }
   };
 
@@ -56,6 +58,7 @@ export const OfficerDashboard = () => {
           <GlassCard variants={scrollReveal}><h3 className="text-ink-300 text-[11px] font-bold uppercase tracking-widest mb-1">SLA Breaches</h3><p className="text-4xl font-serif text-danger">3</p></GlassCard>
         </div>
 
+        {error && <div className="bg-red-100 text-red-500 font-bold p-6 text-center rounded-xl">API Error: {error}</div>}
         {hotspots.length > 0 && (
            <div className="space-y-4">
               <h2 className="text-2xl font-bold text-ink-900">AI Hotspot Detection</h2>

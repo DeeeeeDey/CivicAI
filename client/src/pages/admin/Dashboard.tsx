@@ -1,4 +1,4 @@
-import { useAdminUsers } from '../../hooks/queries';
+﻿import { useAdminUsers } from '../../hooks/queries';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Badge } from '../../components/ui/Badge';
 import { Shield, Users, Settings } from 'lucide-react';
@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { staggerContainer, scrollReveal } from '../../lib/motion';
 
 export const AdminDashboard = () => {
-  const { data: users, isLoading } = useAdminUsers();
+  const { data: users, isLoading, error } = useAdminUsers();
 
   const totalUsers = users?.length || 0;
   const officers = users?.filter((u: any) => u.role === 'OFFICER').length || 0;
@@ -24,7 +24,7 @@ export const AdminDashboard = () => {
          </div>
       </div>
 
-      {isLoading ? (
+      {error ? (<div className="text-red-500 font-bold p-12 text-center">API Error: {(error as any)?.response?.data?.error || error.message}</div>) : isLoading ? (
         <div className="animate-pulse space-y-6"><div className="h-32 bg-white/40 rounded-[24px]"></div></div>
       ) : (
         <motion.div variants={staggerContainer} initial="initial" animate="animate" className="space-y-12">
