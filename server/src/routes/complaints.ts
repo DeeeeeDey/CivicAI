@@ -6,6 +6,11 @@ import { authenticate } from '../middlewares';
 const router = Router();
 const prisma = new PrismaClient();
 
+import { createClient } from '@supabase/supabase-js';
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+
 // Helper to calculate bounding box for rough initial filtering before Haversine
 const getBoundingBox = (lat: number, lng: number, radiusKm: number) => {
   const earthRadiusKm = 6371;
@@ -188,6 +193,32 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
         };
     }
 
+        // 4. Upload Image to Supabase
+    let imageUrl = null;
+    if (file && supabase) {
+       try {
+          const fileExt = file.originalname.split('.').pop();
+          const fileName = `${Date.now()}_${publicId}.${fileExt}`;
+          
+          const { data: uploadData, error: uploadError } = await supabase
+             .storage
+             .from('complaints')
+             .upload(fileName, file.buffer, {
+                contentType: file.mimetype,
+                upsert: false
+             });
+             
+          if (uploadError) {
+             console.error('Supabase upload failed:', uploadError);
+          } else {
+             const { data: publicUrlData } = supabase.storage.from('complaints').getPublicUrl(fileName);
+             imageUrl = publicUrlData.publicUrl;
+          }
+       } catch (err) {
+          console.error('Storage error:', err);
+       }
+    }
+
     // 4. Create Complaint
     const complaint = await prisma.complaint.create({
       data: {
@@ -201,6 +232,7 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
         longitude: parseFloat(longitude),
         severity: aiResult.severity || 3,
         status: 'REPORTED',
+        imageUrl: imageUrl,
       }
     });
 
@@ -233,3 +265,4 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
 });
 
 export default router;
+

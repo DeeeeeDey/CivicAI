@@ -53,6 +53,11 @@ export const MyComplaints = () => {
 
               <div className="bg-surface/50 rounded-xl p-4 mb-6 border border-border">
                 <p className="text-ink-900">{complaint.description}</p>
+                {complaint.imageUrl && (
+                   <div className="mt-4 rounded-lg overflow-hidden border border-border h-48 bg-ink-900/5">
+                      <img src={complaint.imageUrl} alt="Complaint Evidence" className="w-full h-full object-cover" />
+                   </div>
+                )}
               </div>
 
               <div>

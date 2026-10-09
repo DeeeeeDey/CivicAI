@@ -61,6 +61,11 @@ export const Track = () => {
                            <Badge color="info">{complaint.status.replace('_', ' ')}</Badge>
                         </div>
                         <p className="text-ink-700">{complaint.description}</p>
+                        {complaint.imageUrl && (
+                           <div className="mt-4 h-48 w-full rounded-xl overflow-hidden border border-border">
+                              <img src={complaint.imageUrl} className="w-full h-full object-cover" />
+                           </div>
+                        )}
                      </div>
                      <Badge color="danger">Severity {complaint.severity}</Badge>
                   </div>
