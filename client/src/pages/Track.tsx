@@ -17,27 +17,11 @@ export const Track = () => {
     if (!ticketId) return;
     setLoading(true);
     try {
-      // Mock tracking logic since we didn't build public GET /complaint/:id without auth
-      // In a real app we'd fetch public data:
-      // const res = await api.get(`/public/complaint/${ticketId}`);
-      // setComplaint(res.data);
-      setTimeout(() => {
-         setComplaint({
-            publicId: ticketId.toUpperCase(),
-            description: "Deep pothole on main road causing hazard",
-            status: "IN_PROGRESS",
-            severity: 4,
-            createdAt: new Date(Date.now() - 86400000).toISOString(),
-            history: [
-               { date: new Date(Date.now() - 86400000).toISOString(), event: 'Citizen reported the issue via app.', type: 'REPORTED' },
-               { date: new Date(Date.now() - 80000000).toISOString(), event: 'AI classified as Pothole (Severity 4/5)', type: 'AI' },
-               { date: new Date(Date.now() - 40000000).toISOString(), event: 'Assigned to Public Works team', type: 'ASSIGNED' },
-               { date: new Date(Date.now() - 10000000).toISOString(), event: 'Crew dispatched to location', type: 'IN_PROGRESS' }
-            ]
-         });
-         setLoading(false);
-      }, 800);
-    } catch(err) {
+      const res = await api.get(`/complaints/public/track/${ticketId}`);
+      setComplaint(res.data);
+      setLoading(false);
+    } catch(err: any) {
+      alert(err.response?.data?.error || "Ticket not found");
       setLoading(false);
     }
   };

@@ -114,6 +114,29 @@ router.get('/', authenticate, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.get('/public/track/:publicId', async (req, res, next) => {
+  try {
+    const complaint = await prisma.complaint.findUnique({
+      where: { publicId: req.params.publicId },
+      include: { category: true, statusHistory: { orderBy: { createdAt: 'desc' } } }
+    });
+    if (!complaint) return res.status(404).json({ error: 'Ticket not found' });
+    res.json({
+       publicId: complaint.publicId,
+       description: complaint.description,
+       status: complaint.status,
+       severity: complaint.severity,
+       createdAt: complaint.createdAt,
+       category: complaint.category?.name || 'Issue',
+       history: complaint.statusHistory.map(h => ({
+          date: h.createdAt,
+          event: h.notes || 'Status updated to ' + h.status,
+          type: h.status
+       }))
+    });
+  } catch (err) { next(err); }
+});
+
 import multer from 'multer';
 router.post('/:publicId/support', authenticate, async (req: any, res: any, next) => {
   try {
