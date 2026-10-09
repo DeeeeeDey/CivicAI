@@ -1,4 +1,5 @@
 import { ComplaintStatus, PrismaClient } from '@prisma/client';
+import { sendStatusUpdateEmail } from './email';
 
 const prisma = new PrismaClient();
 
@@ -26,7 +27,7 @@ export const transitionComplaint = async (
   userId: string, 
   notes?: string
 ) => {
-  const complaint = await prisma.complaint.findUnique({ where: { id: complaintId } });
+  const complaint = await prisma.complaint.findUnique({ where: { id: complaintId }, include: { citizen: true } });
   if (!complaint) throw new Error('Complaint not found');
 
   const allowed = validTransitions[complaint.status];
@@ -58,7 +59,7 @@ export const transitionComplaint = async (
       }
     });
 
-    // Notify citizen
+    // Notify citizen via in-app
     await tx.notification.create({
       data: {
         userId: comp.citizenId,
@@ -67,6 +68,14 @@ export const transitionComplaint = async (
         link: `/complaints/${comp.publicId}`
       }
     });
+    
+    // Notify citizen via Email
+    if (complaint.citizen && complaint.citizen.email) {
+      // Fire and forget (don't block the transaction)
+      sendStatusUpdateEmail(complaint.citizen.email, comp.publicId, targetStatus, notes).catch(err => {
+         console.error("Non-fatal error: Failed to send email trigger", err);
+      });
+    }
 
     return comp;
   });
