@@ -171,3 +171,7 @@ async def verify_resolution(
 async def department(category: str = Form(...)):
     dept = ml.DEPARTMENTS.get(category, "General Administration")
     return {"department": dept, "model_version": "rules-based"}
+
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run(app, host='0.0.0.0', port=7860)

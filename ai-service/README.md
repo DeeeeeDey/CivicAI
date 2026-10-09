@@ -3,7 +3,7 @@ title: CivicAI Multimodal Engine
 emoji: 🏙️
 colorFrom: blue
 colorTo: green
-sdk: docker
+sdk: gradio
 app_port: 7860
 ---
 
