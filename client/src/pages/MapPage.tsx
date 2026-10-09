@@ -36,12 +36,35 @@ export const MapPage = () => {
   const { lat, lng } = useLocationStore();
   const { theme } = useTheme();
   
-  // Spoofed data for the prototype until endpoint is wired
-  const [complaints] = useState([
-    { id: 'CIV-2033', lat: lat + 0.01, lng: lng + 0.01, title: 'Pothole on Main Rd', severity: 4, status: 'OPEN' },
-    { id: 'CIV-1982', lat: lat - 0.005, lng: lng + 0.02, title: 'Broken Streetlight', severity: 2, status: 'IN_PROGRESS' },
-    { id: 'CIV-2101', lat: lat + 0.015, lng: lng - 0.01, title: 'Water Leak', severity: 5, status: 'OPEN' },
-  ]);
+  const [complaints, setComplaints] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchComplaints = async () => {
+      try {
+        setLoading(true);
+        // We use the full API URL just in case, or relative if proxied
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+        const res = await fetch(`${apiUrl}/complaints/public/map?lat=${lat}&lng=${lng}&radiusKm=10`);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const mapped = data.map(item => ({
+             ...item,
+             id: item.publicId || item.id,
+             lat: item.latitude,
+             lng: item.longitude,
+             title: item.title || item.description || "Civic Issue"
+          }));
+          setComplaints(mapped);
+        }
+      } catch (err) {
+        console.error("Failed to fetch complaints for map:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchComplaints();
+  }, [lat, lng]);
 
   // Using standard OpenStreetMap to completely bypass all API key requirements
   const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
