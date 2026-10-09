@@ -107,8 +107,8 @@ function App() {
                  </Route>
 
                  <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
-                   <Route path="/admin/dashboard" element={<div className="p-12 text-center text-ink-900">Admin Dashboard</div>} />
-                   <Route path="/admin/users" element={<div className="p-12 text-center text-ink-900">Users</div>} />
+                   <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                   <Route path="/admin/users" element={<AdminDashboard />} />
                    <Route path="/admin/departments" element={<div className="p-12 text-center text-ink-900">Departments</div>} />
                    <Route path="/admin/logs" element={<div className="p-12 text-center text-ink-900">Audit Logs</div>} />
                    <Route path="/admin/settings" element={<div className="p-12 text-center text-ink-900">Settings</div>} />
