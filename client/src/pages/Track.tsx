@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { GlassCard } from '../components/ui/GlassCard';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -8,9 +9,16 @@ import { Search, CheckCircle2, Clock, AlertTriangle, FileText, ArrowRight } from
 import { api } from '../api/axios';
 
 export const Track = () => {
-  const [ticketId, setTicketId] = useState('');
+  const { id } = useParams<{ id: string }>();
+  const [ticketId, setTicketId] = useState(id || '');
   const [loading, setLoading] = useState(false);
   const [complaint, setComplaint] = useState<any>(null);
+
+  useEffect(() => {
+    if (id) {
+      handleTrack({ preventDefault: () => {} });
+    }
+  }, [id]);
 
   const handleTrack = async (e: any) => {
     e.preventDefault();

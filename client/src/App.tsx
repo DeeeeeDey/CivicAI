@@ -72,7 +72,7 @@ function App() {
                 <Route path="/register" element={user ? <Navigate to={`/${user.role.toLowerCase()}/dashboard`} replace /> : <Register />} />
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/transparency" element={<Transparency />} />
-                <Route path="/track" element={<Track />} />
+                <Route path="/track" element={<Track />} />`n                <Route path="/track/:id" element={<Track />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/map" element={<MapPage />} />
                 

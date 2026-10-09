@@ -9,6 +9,26 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/axios';
 import { useLocationStore } from '../../store/locationStore';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+const LocationPicker = () => {
+   const { lat, lng, setLocation } = useLocationStore();
+   useMapEvents({
+      click(e) {
+         setLocation({ lat: e.latlng.lat, lng: e.latlng.lng, source: 'gps', label: 'Custom Pinned Location' });
+      }
+   });
+   return (
+      <Marker position={[lat, lng]} icon={L.divIcon({
+         className: 'custom-icon',
+         html: `<div style="background-color: var(--accent); width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"></div>`,
+         iconSize: [24, 24],
+         iconAnchor: [12, 12]
+      })} />
+   );
+};
 
 const steps = [
   { id: 1, name: 'Photo', icon: Camera },
