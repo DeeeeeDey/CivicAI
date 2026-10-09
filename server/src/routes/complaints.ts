@@ -106,7 +106,8 @@ router.get('/public/stats', async (req, res, next) => {
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const complaints = await prisma.complaint.findMany({
-      include: { category: true, department: true },
+      include: { category: true, department: true, statusHistory: true },
+
       orderBy: { createdAt: 'desc' }
     });
     res.json(complaints);

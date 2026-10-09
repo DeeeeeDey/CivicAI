@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './theme/ThemeProvider';
@@ -21,6 +21,7 @@ import { HowItWorks } from './pages/HowItWorks';
 import { MapPage } from './pages/MapPage';
 
 import { CitizenDashboard } from './pages/citizen/Dashboard';
+import { MyComplaints } from './pages/citizen/MyComplaints';
 import { ReportIssue } from './pages/citizen/ReportIssue';
 import { OfficerDashboard } from './pages/officer/Dashboard';
 import { WorkerTasks } from './pages/worker/Tasks';
@@ -82,7 +83,7 @@ function App() {
                  <Route element={<ProtectedRoute allowedRoles={['CITIZEN']} />}>
                    <Route path="/citizen/dashboard" element={<CitizenDashboard />} />
                    <Route path="/citizen/report" element={<ReportIssue />} />
-                   <Route path="/citizen/complaints" element={<div className="p-12 text-center text-ink-900">My Complaints List (To do)</div>} />
+                   <Route path="/citizen/complaints" element={<MyComplaints />} />
                    <Route path="/citizen/map" element={<div className="p-12 text-center text-ink-900">Community Map (To do)</div>} />
                    <Route path="/citizen/notifications" element={<div className="p-12 text-center text-ink-900">Notifications</div>} />
                    <Route path="/citizen/settings" element={<div className="p-12 text-center text-ink-900">Settings</div>} />
