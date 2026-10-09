@@ -7,6 +7,34 @@ const router = Router();
 const prisma = new PrismaClient();
 router.use(authenticate, requireRole(Role.OFFICER, Role.ADMIN));
 
+router.get('/stats', async (req: AuthRequest, res, next) => {
+  try {
+    const pendingReview = await prisma.complaint.count({ where: { status: 'REPORTED' } });
+    const activeTasks = await prisma.complaint.count({ where: { status: 'IN_PROGRESS' } });
+    
+    // Very simple SLA check: REPORTED over 48 hours ago
+    const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const slaBreaches = await prisma.complaint.count({
+      where: {
+        status: { in: ['REPORTED', 'UNDER_REVIEW'] },
+        createdAt: { lt: twoDaysAgo }
+      }
+    });
+
+    res.json({ pendingReview, activeTasks, slaBreaches });
+  } catch (err) { next(err); }
+});
+
+router.get('/workers', async (req: AuthRequest, res, next) => {
+  try {
+    const workers = await prisma.user.findMany({
+      where: { role: 'WORKER' },
+      select: { id: true, name: true, email: true }
+    });
+    res.json(workers);
+  } catch (err) { next(err); }
+});
+
 router.post('/:id/status', async (req: AuthRequest, res, next) => {
   try {
     const { status, notes } = req.body;

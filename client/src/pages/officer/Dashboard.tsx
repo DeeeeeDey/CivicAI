@@ -1,48 +1,90 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { staggerContainer, scrollReveal } from '../../lib/motion';
-import { MapPin, Users, AlertTriangle, Bot, CheckCircle, XCircle } from 'lucide-react';
+import { AlertTriangle, Bot, XCircle } from 'lucide-react';
 import { api } from '../../api/axios';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export const OfficerDashboard = () => {
-  const [hotspots, setHotspots] = useState<any[]>([]);
-  const [complaints, setComplaints] = useState<any[]>([]);
+  const queryClient = useQueryClient();
+
+  const { data: stats } = useQuery({
+    queryKey: ['officerStats'],
+    queryFn: async () => {
+      const res = await api.get('/officers/stats');
+      return res.data;
+    }
+  });
+
+  const { data: complaints, isLoading: compLoading } = useQuery({
+    queryKey: ['officerComplaints'],
+    queryFn: async () => {
+      const res = await api.get('/complaints');
+      return res.data.filter((c: any) => c.status === 'REPORTED');
+    }
+  });
+
+  const { data: workers } = useQuery({
+    queryKey: ['officerWorkers'],
+    queryFn: async () => {
+      const res = await api.get('/officers/workers');
+      return res.data;
+    }
+  });
+
+  const { data: hotspots } = useQuery({
+    queryKey: ['officerHotspots'],
+    queryFn: async () => {
+      const res = await api.get('/analytics/hotspots');
+      return res.data;
+    }
+  });
+
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [overrideReason, setOverrideReason] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const res = await api.get('/analytics/hotspots');
-      setHotspots(res.data);
-      const cRes = await api.get('/complaints');
-      setComplaints(cRes.data.slice(0, 10)); // Just recent ones for review
-    } catch(err) {
-      console.error(err);
-      setError((err as any)?.response?.data?.error || err.message);
-    }
-  };
+  const [selectedWorkerId, setSelectedWorkerId] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleReview = async (id: string, action: 'accept' | 'override') => {
     if (action === 'override' && !overrideReason) {
        alert("Override reason required!");
        return;
     }
-    // Simulate API call for review
-    alert(`Ticket ${id} ${action}ed!`);
-    setSelectedTicket(null);
-    setOverrideReason('');
+    if (action === 'accept' && !selectedWorkerId) {
+       alert("Please select a worker to assign to.");
+       return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+       if (action === 'accept') {
+          await api.post(`/officers/${id}/assign`, { workerId: selectedWorkerId });
+       } else {
+          await api.post(`/officers/${id}/override`, { 
+             categoryId: selectedTicket.categoryId, 
+             departmentId: selectedTicket.departmentId, 
+             severity: selectedTicket.severity, 
+             reason: overrideReason 
+          });
+          // After override, it's still unassigned. They'd need to review again, but let's simplify and dismiss modal.
+       }
+       queryClient.invalidateQueries({ queryKey: ['officerComplaints'] });
+       queryClient.invalidateQueries({ queryKey: ['officerStats'] });
+       setSelectedTicket(null);
+       setOverrideReason('');
+       setSelectedWorkerId('');
+    } catch (err: any) {
+       alert("Error processing review: " + (err.response?.data?.error || err.message));
+    } finally {
+       setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-12 relative">
+    <div className="max-w-6xl mx-auto space-y-12 relative pb-12">
       <div className="flex justify-between items-center">
          <div>
             <h1 className="text-3xl md:text-4xl font-bold mb-2 text-ink-900">Command Center</h1>
@@ -51,26 +93,23 @@ export const OfficerDashboard = () => {
       </div>
 
       <motion.div variants={staggerContainer} initial="initial" animate="animate" className="space-y-12">
-        <div className="grid md:grid-cols-4 gap-6">
-          <GlassCard variants={scrollReveal}><h3 className="text-ink-300 text-[11px] font-bold uppercase tracking-widest mb-1">Pending Review</h3><p className="text-4xl font-serif text-info">42</p></GlassCard>
-          <GlassCard variants={scrollReveal}><h3 className="text-ink-300 text-[11px] font-bold uppercase tracking-widest mb-1">AI Flagged Duplicates</h3><p className="text-4xl font-serif text-warning">18</p></GlassCard>
-          <GlassCard variants={scrollReveal}><h3 className="text-ink-300 text-[11px] font-bold uppercase tracking-widest mb-1">Active Field Tasks</h3><p className="text-4xl font-serif text-ink-900">156</p></GlassCard>
-          <GlassCard variants={scrollReveal}><h3 className="text-ink-300 text-[11px] font-bold uppercase tracking-widest mb-1">SLA Breaches</h3><p className="text-4xl font-serif text-danger">3</p></GlassCard>
+        <div className="grid md:grid-cols-3 gap-6">
+          <GlassCard variants={scrollReveal}><h3 className="text-ink-300 text-[11px] font-bold uppercase tracking-widest mb-1">Pending Review</h3><p className="text-4xl font-serif text-info">{stats?.pendingReview || 0}</p></GlassCard>
+          <GlassCard variants={scrollReveal}><h3 className="text-ink-300 text-[11px] font-bold uppercase tracking-widest mb-1">Active Field Tasks</h3><p className="text-4xl font-serif text-ink-900">{stats?.activeTasks || 0}</p></GlassCard>
+          <GlassCard variants={scrollReveal}><h3 className="text-ink-300 text-[11px] font-bold uppercase tracking-widest mb-1">SLA Breaches (48h)</h3><p className="text-4xl font-serif text-danger">{stats?.slaBreaches || 0}</p></GlassCard>
         </div>
 
-        {error && <div className="bg-red-100 text-red-500 font-bold p-6 text-center rounded-xl">API Error: {error}</div>}
-        {hotspots.length > 0 && (
+        {hotspots && hotspots.length > 0 && (
            <div className="space-y-4">
               <h2 className="text-2xl font-bold text-ink-900">AI Hotspot Detection</h2>
               <div className="grid md:grid-cols-2 gap-4">
-                 {hotspots.map((h, idx) => (
+                 {hotspots.map((h: any, idx: number) => (
                     <GlassCard key={idx} className="p-4 border-l-4 border-l-accent shadow-lg bg-surface">
                        <div className="flex justify-between">
                           <Badge color="warning">{h.category}</Badge>
                           <Badge color="danger">Severity {h.topSeverity}</Badge>
                        </div>
                        <p className="mt-3 text-sm text-ink-900 font-semibold">{h.insight}</p>
-                       <Button variant="secondary" className="mt-4 text-xs">Create bulk inspection task</Button>
                     </GlassCard>
                  ))}
               </div>
@@ -78,16 +117,24 @@ export const OfficerDashboard = () => {
         )}
 
         <div className="space-y-6">
-           <h2 className="text-2xl font-bold text-ink-900 flex items-center gap-2"><AlertTriangle size={20} className="text-ink-300"/> Urgent Queue for Review</h2>
-           {complaints.map((c, i) => (
-             <GlassCard interactive key={i} variants={scrollReveal} className="p-6 flex flex-col sm:flex-row justify-between items-start gap-4">
-                <div>
+           <h2 className="text-2xl font-bold text-ink-900 flex items-center gap-2"><AlertTriangle size={20} className="text-danger"/> Urgent Queue for Review</h2>
+           {compLoading && <p>Loading queue...</p>}
+           {!compLoading && complaints?.length === 0 && <p className="text-ink-500">No tickets currently awaiting review.</p>}
+           
+           {complaints?.map((c: any) => (
+             <GlassCard interactive key={c.id} variants={scrollReveal} className="p-6 flex flex-col sm:flex-row justify-between items-start gap-4">
+                <div className="flex-1">
                    <div className="flex flex-wrap gap-2 mb-3">
                      {c.severity >= 4 && <Badge color="danger">Critical Severity</Badge>}
                      <Badge color="info">{c.category?.name || 'Unknown'}</Badge>
+                     <span className="text-xs font-bold text-ink-300 uppercase self-center">{c.publicId}</span>
                    </div>
-                   <h4 className="font-bold text-lg text-ink-900">{c.description}</h4>
-                   <p className="text-sm text-ink-500 mt-2">ID: {c.publicId}</p>
+                   <h4 className="font-bold text-lg text-ink-900 mb-2">{c.description}</h4>
+                   {c.imageUrl && (
+                      <div className="h-24 w-40 rounded-lg overflow-hidden border border-border">
+                         <img src={c.imageUrl} className="w-full h-full object-cover" />
+                      </div>
+                   )}
                 </div>
                 <Button onClick={() => setSelectedTicket(c)}>Review Ticket</Button>
              </GlassCard>
@@ -106,9 +153,16 @@ export const OfficerDashboard = () => {
                      <button onClick={() => setSelectedTicket(null)} className="text-ink-500 hover:text-ink-900"><XCircle /></button>
                   </div>
                   <div className="p-6 overflow-y-auto space-y-6">
-                     <div className="p-4 bg-ink-900/5 rounded-xl">
-                        <p className="text-sm font-bold text-ink-500 mb-2">Description</p>
-                        <p className="text-ink-900">{selectedTicket.description}</p>
+                     <div className="p-4 bg-ink-900/5 rounded-xl flex gap-4">
+                        {selectedTicket.imageUrl && (
+                           <div className="w-24 h-24 shrink-0 rounded-lg overflow-hidden border border-border">
+                              <img src={selectedTicket.imageUrl} className="w-full h-full object-cover" />
+                           </div>
+                        )}
+                        <div>
+                           <p className="text-sm font-bold text-ink-500 mb-1">Description</p>
+                           <p className="text-ink-900">{selectedTicket.description}</p>
+                        </div>
                      </div>
                      
                      <div className="p-4 border border-accent/20 bg-accent/5 rounded-xl relative">
@@ -126,19 +180,35 @@ export const OfficerDashboard = () => {
                         </div>
                      </div>
 
-                     <div className="space-y-2">
-                        <label className="text-sm font-bold text-ink-900">Override Reason (Optional if Accepting)</label>
-                        <textarea 
-                           className="w-full p-3 rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-accent" 
-                           placeholder="Why are you overriding the AI suggestion?"
-                           value={overrideReason}
-                           onChange={e => setOverrideReason(e.target.value)}
-                        />
+                     <div className="space-y-4">
+                        <div>
+                           <label className="text-sm font-bold text-ink-900 block mb-2">Assign Field Worker</label>
+                           <select 
+                              className="w-full p-3 rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-accent"
+                              value={selectedWorkerId}
+                              onChange={e => setSelectedWorkerId(e.target.value)}
+                           >
+                              <option value="">Select a worker...</option>
+                              {workers?.map((w: any) => (
+                                 <option key={w.id} value={w.id}>{w.name} ({w.email})</option>
+                              ))}
+                           </select>
+                        </div>
+                        
+                        <div>
+                           <label className="text-sm font-bold text-ink-900 block mb-2">Override Reason (Optional)</label>
+                           <textarea 
+                              className="w-full p-3 rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-accent" 
+                              placeholder="Why are you overriding the AI suggestion?"
+                              value={overrideReason}
+                              onChange={e => setOverrideReason(e.target.value)}
+                           />
+                        </div>
                      </div>
                   </div>
                   <div className="p-6 border-t border-border bg-ink-900/5 flex justify-end gap-4">
-                     <Button variant="secondary" onClick={() => handleReview(selectedTicket.id, 'override')} className="border-danger text-danger hover:bg-danger hover:text-white">Override AI</Button>
-                     <Button onClick={() => handleReview(selectedTicket.id, 'accept')}>Accept & Assign</Button>
+                     <Button variant="secondary" onClick={() => handleReview(selectedTicket.id, 'override')} disabled={isSubmitting} className="border-danger text-danger hover:bg-danger hover:text-white">Override AI</Button>
+                     <Button onClick={() => handleReview(selectedTicket.id, 'accept')} disabled={isSubmitting || !selectedWorkerId}>Accept & Assign</Button>
                   </div>
                </motion.div>
             </div>
