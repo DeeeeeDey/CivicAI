@@ -115,6 +115,21 @@ router.get('/', authenticate, async (req, res, next) => {
 });
 
 import multer from 'multer';
+router.post('/:publicId/support', authenticate, async (req: any, res: any, next) => {
+  try {
+    const complaint = await prisma.complaint.findUnique({ where: { publicId: req.params.publicId } });
+    if (!complaint) return res.status(404).json({ error: 'Complaint not found' });
+    
+    const support = await prisma.complaintSupporter.upsert({
+      where: { complaintId_userId: { complaintId: complaint.id, userId: req.user.id } },
+      update: {},
+      create: { complaintId: complaint.id, userId: req.user.id }
+    });
+    
+    res.json(support);
+  } catch (err) { next(err); }
+});
+
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.post('/', authenticate, upload.single('image'), async (req: any, res: any, next) => {

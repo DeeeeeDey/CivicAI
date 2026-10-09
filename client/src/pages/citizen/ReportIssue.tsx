@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -62,6 +62,16 @@ export const ReportIssue = () => {
       console.error(err);
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  const addSupportToDuplicate = async () => {
+    try {
+      await api.post(/complaints//support);
+      queryClient.invalidateQueries({ queryKey: ['complaints'] });
+      setCurrentStep(5);
+    } catch (err) {
+      alert("Error adding support to existing complaint");
     }
   };
 
@@ -329,9 +339,15 @@ export const ReportIssue = () => {
                    Analyze with AI <ArrowRight size={18} className="ml-2" />
                 </Button>
              ) : currentStep === 4 ? (
-                <Button onClick={submitComplaint} className="px-8 shadow-lg shadow-accent/20 bg-accent text-white hover:bg-accent-hover">
-                   Confirm & Submit <CheckCircle2 size={18} className="ml-2" />
-                </Button>
+                isSameIssue === true ? (
+                  <Button onClick={addSupportToDuplicate} className="px-8 shadow-lg shadow-accent/20 bg-accent text-white hover:bg-accent-hover">
+                     Add Support <CheckCircle2 size={18} className="ml-2" />
+                  </Button>
+                ) : (
+                  <Button onClick={submitComplaint} disabled={aiData?.duplicate_probability > 0.4 && isSameIssue === null} className="px-8 shadow-lg shadow-accent/20 bg-accent text-white hover:bg-accent-hover">
+                     Confirm & Submit <CheckCircle2 size={18} className="ml-2" />
+                  </Button>
+                )
              ) : (
                 <Button onClick={nextStep} disabled={currentStep === 1 && !file} className="px-8">
                    Next Step <ArrowRight size={18} className="ml-2" />
