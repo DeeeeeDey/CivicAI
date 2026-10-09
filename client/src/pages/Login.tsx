@@ -30,7 +30,7 @@ export const Login = () => {
       navigate(target, { replace: true });
     },
     onError: (err: any) => {
-      setErrorMsg(err.response?.data?.error || 'Wrong email or password');
+      setErrorMsg(err.response?.data?.error || err.message || 'Login failed: ' + (err.response?.status || 'Network Error'));
     }
   });
 

@@ -31,7 +31,7 @@ export const Register = () => {
       navigate('/citizen/dashboard', { replace: true });
     },
     onError: (err: any) => {
-      setErrorMsg(err.response?.data?.error || 'Failed to register account');
+      setErrorMsg(err.response?.data?.error || err.message || 'Failed to register account: ' + (err.response?.status || 'Network Error'));
     }
   });
 
