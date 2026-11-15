@@ -18,6 +18,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Thumbnail } from '../../components/ui/ImageLightbox';
 
 export const AdminComplaintsPage = () => {
   const queryClient = useQueryClient();
@@ -189,21 +190,27 @@ export const AdminComplaintsPage = () => {
                     <div className="flex gap-4 pt-1">
                       {c.imageUrl && (
                         <div>
-                          <p className="text-[11px] font-bold text-ink-400 uppercase mb-1">Issue Evidence</p>
-                          <div className="w-24 h-20 rounded-lg overflow-hidden border border-border bg-surface">
-                            <img src={c.imageUrl} alt="Issue" className="w-full h-full object-cover" />
-                          </div>
+                          <p className="text-[10px] font-bold text-ink-400 uppercase mb-1">Issue Photo (Click to zoom)</p>
+                          <Thumbnail
+                            src={c.imageUrl}
+                            alt="Issue"
+                            title={`Issue Evidence #${c.publicId}`}
+                            className="w-24 h-20 rounded-lg"
+                          />
                         </div>
                       )}
 
                       {resolution?.proofImageUrl && (
                         <div>
-                          <p className="text-[11px] font-bold text-success uppercase mb-1 flex items-center gap-1">
-                            <Camera size={11} /> Resolution Proof
+                          <p className="text-[10px] font-bold text-success uppercase mb-1 flex items-center gap-1">
+                            <Camera size={11} /> Repair Proof (Click to zoom)
                           </p>
-                          <div className="w-24 h-20 rounded-lg overflow-hidden border border-success/40 bg-surface">
-                            <img src={resolution.proofImageUrl} alt="Resolution" className="w-full h-full object-cover" />
-                          </div>
+                          <Thumbnail
+                            src={resolution.proofImageUrl}
+                            alt="Resolution"
+                            title={`Resolution Proof #${c.publicId}`}
+                            className="w-24 h-20 rounded-lg border border-success/40"
+                          />
                         </div>
                       )}
                     </div>

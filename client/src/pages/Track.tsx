@@ -7,6 +7,7 @@ import { Badge } from '../components/ui/Badge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, CheckCircle2, Clock, AlertTriangle, FileText, Bot } from 'lucide-react';
 import { api } from '../api/axios';
+import { Thumbnail } from '../components/ui/ImageLightbox';
 
 export const Track = () => {
   const { id } = useParams<{ id: string }>();
@@ -84,18 +85,27 @@ export const Track = () => {
                         </div>
                         <p className="text-ink-700">{complaint.description}</p>
                         {complaint.imageUrl && (
-                           <div className="mt-4 h-48 w-full rounded-xl overflow-hidden border border-border">
-                              <img src={complaint.imageUrl} alt="Complaint Evidence" className="w-full h-full object-cover" />
+                           <div className="mt-4">
+                              <p className="text-xs font-bold text-ink-400 uppercase mb-1.5">Original Issue Evidence (Click to expand)</p>
+                              <Thumbnail
+                                 src={complaint.imageUrl}
+                                 alt="Complaint Evidence"
+                                 title={`Initial Evidence #${complaint.publicId}`}
+                                 className="h-56 w-full rounded-xl"
+                              />
                            </div>
                         )}
                         
                         {complaint.resolution && complaint.resolution.proofImageUrl && (
                            <div className="mt-6 p-4 bg-success/10 border border-success/30 rounded-xl">
-                              <h3 className="text-success font-bold mb-2 flex items-center gap-2"><CheckCircle2 size={16}/> Resolution Proof</h3>
+                              <h3 className="text-success font-bold mb-2 flex items-center gap-2"><CheckCircle2 size={16}/> Resolution Proof (Click to expand)</h3>
                               <p className="text-sm text-ink-700 mb-3">{complaint.resolution.description || 'Issue has been successfully resolved.'}</p>
-                              <div className="h-48 w-full rounded-xl overflow-hidden border border-success/20">
-                                 <img src={complaint.resolution.proofImageUrl} alt="Resolution Proof" className="w-full h-full object-cover" />
-                              </div>
+                              <Thumbnail
+                                 src={complaint.resolution.proofImageUrl}
+                                 alt="Resolution Proof"
+                                 title={`Resolution Proof #${complaint.publicId}`}
+                                 className="h-56 w-full rounded-xl border border-success/30"
+                              />
                            </div>
                         )}
                      </div>

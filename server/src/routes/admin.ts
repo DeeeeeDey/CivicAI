@@ -95,7 +95,7 @@ router.get('/users', async (req, res, next) => {
         phone: true,
         createdAt: true,
         _count: {
-          select: { complaints: true, assignments: true }
+          select: { complaints: true, assignmentsAsWorker: true }
         }
       }
     });

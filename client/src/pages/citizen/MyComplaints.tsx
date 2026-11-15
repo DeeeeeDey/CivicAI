@@ -6,6 +6,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Clock, MapPin, CheckCircle2, ExternalLink, Search, Camera } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Thumbnail } from '../../components/ui/ImageLightbox';
 
 export const MyComplaints = () => {
   const { data: complaints, isLoading } = useComplaints();
@@ -126,7 +127,7 @@ export const MyComplaints = () => {
                     </div>
                     <p className="text-ink-700 font-mono text-sm font-semibold mb-1">{complaint.publicId}</p>
                     <p className="text-ink-500 text-sm flex items-center gap-2">
-                      <MapPin size={14} /> {complaint.latitude.toFixed(4)}, {complaint.longitude.toFixed(4)}
+                      <MapPin size={14} /> {typeof complaint.latitude === 'number' ? complaint.latitude.toFixed(4) : (complaint.latitude || '0.0000')}, {typeof complaint.longitude === 'number' ? complaint.longitude.toFixed(4) : (complaint.longitude || '0.0000')}
                     </p>
                   </div>
                   <div className="flex flex-col md:items-end gap-2">
@@ -142,8 +143,14 @@ export const MyComplaints = () => {
                 <div className="bg-surface/50 rounded-xl p-4 mb-6 border border-border">
                   <p className="text-ink-900 font-medium">{complaint.description}</p>
                   {complaint.imageUrl && (
-                    <div className="mt-4 rounded-lg overflow-hidden border border-border h-48 bg-ink-900/5 max-w-md">
-                      <img src={complaint.imageUrl} alt="Complaint Evidence" className="w-full h-full object-cover" />
+                    <div className="mt-4">
+                      <p className="text-[11px] font-bold text-ink-400 uppercase mb-1">Issue Photo (Click to zoom)</p>
+                      <Thumbnail
+                        src={complaint.imageUrl}
+                        alt="Complaint Evidence"
+                        title={`Evidence for #${complaint.publicId}`}
+                        className="h-48 w-full max-w-md rounded-xl"
+                      />
                     </div>
                   )}
                 </div>
@@ -152,14 +159,17 @@ export const MyComplaints = () => {
                 {resolution && resolution.proofImageUrl && (
                   <div className="bg-success/5 border border-success/30 rounded-xl p-4 mb-6">
                     <h4 className="text-sm font-bold text-success uppercase tracking-wider mb-2 flex items-center gap-2">
-                      <Camera size={16} /> Field Resolution Proof
+                      <Camera size={16} /> Field Resolution Proof (Click to zoom)
                     </h4>
                     {resolution.description && (
                       <p className="text-sm text-ink-800 mb-3">{resolution.description}</p>
                     )}
-                    <div className="rounded-lg overflow-hidden border border-success/30 h-48 bg-ink-900/5 max-w-md">
-                      <img src={resolution.proofImageUrl} alt="Resolution Evidence" className="w-full h-full object-cover" />
-                    </div>
+                    <Thumbnail
+                      src={resolution.proofImageUrl}
+                      alt="Resolution Evidence"
+                      title={`Resolution Proof #${complaint.publicId}`}
+                      className="h-48 w-full max-w-md rounded-xl border border-success/30"
+                    />
                   </div>
                 )}
 

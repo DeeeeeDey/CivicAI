@@ -9,6 +9,7 @@ import { PublicLayout } from './layouts/PublicLayout';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ScrollToTop } from './components/ScrollToTop';
+import { LightboxProvider } from './components/ui/ImageLightbox';
 
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
@@ -24,10 +25,17 @@ import { AdminOverview } from './pages/admin/Overview';
 import { AdminUsersPage } from './pages/admin/UsersPage';
 import { AdminComplaintsPage } from './pages/admin/ComplaintsPage';
 import { AdminSettingsPage } from './pages/admin/SettingsPage';
+
 import { CitizenDashboard } from './pages/citizen/Dashboard';
 import { MyComplaints } from './pages/citizen/MyComplaints';
 import { ReportIssue } from './pages/citizen/ReportIssue';
+
 import { OfficerDashboard } from './pages/officer/Dashboard';
+import { OfficerQueuePage } from './pages/officer/QueuePage';
+import { OfficerVerificationPage } from './pages/officer/VerificationPage';
+import { OfficerWorkersPage } from './pages/officer/WorkersPage';
+import { OfficerAnalyticsPage } from './pages/officer/AnalyticsPage';
+
 import { WorkerTasks } from './pages/worker/Tasks';
 
 const queryClient = new QueryClient({
@@ -64,63 +72,66 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthBootstrap>
-          <div className="mesh-background"></div>
-          <Router>
-            <ScrollToTop />
-            <Routes>
-              {/* Public Routes */}
-              <Route element={<PublicLayout />}>
-                <Route path="/" element={<Home />} />
-                <Route path="/login" element={user ? <Navigate to={`/${user.role.toLowerCase()}/dashboard`} replace /> : <Login />} />
-                <Route path="/register" element={user ? <Navigate to={`/${user.role.toLowerCase()}/dashboard`} replace /> : <Register />} />
-                <Route path="/how-it-works" element={<HowItWorks />} />
-                <Route path="/transparency" element={<Transparency />} />
-                <Route path="/track" element={<Track />} />
-                <Route path="/track/:id" element={<Track />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/map" element={<MapPage />} />
+          <LightboxProvider>
+            <div className="mesh-background"></div>
+            <Router>
+              <ScrollToTop />
+              <Routes>
+                {/* Public Routes */}
+                <Route element={<PublicLayout />}>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/login" element={user ? <Navigate to={`/${user.role.toLowerCase()}/dashboard`} replace /> : <Login />} />
+                  <Route path="/register" element={user ? <Navigate to={`/${user.role.toLowerCase()}/dashboard`} replace /> : <Register />} />
+                  <Route path="/how-it-works" element={<HowItWorks />} />
+                  <Route path="/transparency" element={<Transparency />} />
+                  <Route path="/track" element={<Track />} />
+                  <Route path="/track/:id" element={<Track />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/map" element={<MapPage />} />
+                  
+                  {import.meta.env.DEV && <Route path="/design-system" element={<DesignSystem />} />}
+                </Route>
+
+                {/* Protected Dashboards */}
+                <Route element={<DashboardLayout />}>
+                   {/* Citizen Suite */}
+                   <Route element={<ProtectedRoute allowedRoles={['CITIZEN']} />}>
+                     <Route path="/citizen/dashboard" element={<CitizenDashboard />} />
+                     <Route path="/citizen/report" element={<ReportIssue />} />
+                     <Route path="/citizen/complaints" element={<MyComplaints />} />
+                     <Route path="/citizen/map" element={<MapPage />} />
+                     <Route path="/citizen/notifications" element={<div className="p-12 text-center text-ink-900">Notifications</div>} />
+                     <Route path="/citizen/settings" element={<div className="p-12 text-center text-ink-900">Settings</div>} />
+                   </Route>
+                   
+                   {/* Officer Operations Suite */}
+                   <Route element={<ProtectedRoute allowedRoles={['OFFICER']} />}>
+                     <Route path="/officer/dashboard" element={<OfficerDashboard />} />
+                     <Route path="/officer/queue" element={<OfficerQueuePage />} />
+                     <Route path="/officer/verification" element={<OfficerVerificationPage />} />
+                     <Route path="/officer/workers" element={<OfficerWorkersPage />} />
+                     <Route path="/officer/analytics" element={<OfficerAnalyticsPage />} />
+                   </Route>
+
+                   {/* Worker Field Suite */}
+                   <Route element={<ProtectedRoute allowedRoles={['WORKER']} />}>
+                     <Route path="/worker/dashboard" element={<WorkerTasks />} />
+                     <Route path="/worker/history" element={<WorkerTasks />} />
+                   </Route>
+
+                   {/* Admin Suite */}
+                   <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+                     <Route path="/admin/dashboard" element={<AdminOverview />} />
+                     <Route path="/admin/users" element={<AdminUsersPage />} />
+                     <Route path="/admin/complaints" element={<AdminComplaintsPage />} />
+                     <Route path="/admin/settings" element={<AdminSettingsPage />} />
+                   </Route>
+                </Route>
                 
-                {import.meta.env.DEV && <Route path="/design-system" element={<DesignSystem />} />}
-              </Route>
-
-              {/* Protected Dashboards */}
-              <Route element={<DashboardLayout />}>
-                 <Route element={<ProtectedRoute allowedRoles={['CITIZEN']} />}>
-                   <Route path="/citizen/dashboard" element={<CitizenDashboard />} />
-                   <Route path="/citizen/report" element={<ReportIssue />} />
-                   <Route path="/citizen/complaints" element={<MyComplaints />} />
-                   <Route path="/citizen/map" element={<MapPage />} />
-                   <Route path="/citizen/notifications" element={<div className="p-12 text-center text-ink-900">Notifications</div>} />
-                   <Route path="/citizen/settings" element={<div className="p-12 text-center text-ink-900">Settings</div>} />
-                 </Route>
-                 
-                 <Route element={<ProtectedRoute allowedRoles={['OFFICER']} />}>
-                   <Route path="/officer/dashboard" element={<OfficerDashboard />} />
-                   <Route path="/officer/queue" element={<OfficerDashboard />} />
-                   <Route path="/officer/verification" element={<div className="p-12 text-center text-ink-900">Verification Queue</div>} />
-                   <Route path="/officer/duplicates" element={<div className="p-12 text-center text-ink-900">Duplicates Manager</div>} />
-                   <Route path="/officer/workers" element={<div className="p-12 text-center text-ink-900">Workers List</div>} />
-                   <Route path="/officer/analytics" element={<div className="p-12 text-center text-ink-900">Analytics</div>} />
-                   <Route path="/officer/settings" element={<div className="p-12 text-center text-ink-900">Settings</div>} />
-                 </Route>
-
-                 <Route element={<ProtectedRoute allowedRoles={['WORKER']} />}>
-                   <Route path="/worker/dashboard" element={<WorkerTasks />} />
-                   <Route path="/worker/history" element={<WorkerTasks />} />
-                   <Route path="/worker/profile" element={<div className="p-12 text-center text-ink-900">Profile</div>} />
-                 </Route>
-
-                 <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
-                   <Route path="/admin/dashboard" element={<AdminOverview />} />
-                   <Route path="/admin/users" element={<AdminUsersPage />} />
-                   <Route path="/admin/complaints" element={<AdminComplaintsPage />} />
-                   <Route path="/admin/settings" element={<AdminSettingsPage />} />
-                 </Route>
-              </Route>
-              
-              <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
-          </Router>
+                <Route path="*" element={<Navigate to="/" />} />
+              </Routes>
+            </Router>
+          </LightboxProvider>
         </AuthBootstrap>
       </ThemeProvider>
     </QueryClientProvider>
