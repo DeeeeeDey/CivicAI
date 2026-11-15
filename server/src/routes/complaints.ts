@@ -233,7 +233,15 @@ router.get('/public/track/:publicId', async (req, res, next) => {
 import multer from 'multer';
 router.post('/:publicId/support', authenticate, async (req: any, res: any, next) => {
   try {
-    const complaint = await prisma.complaint.findUnique({ where: { publicId: req.params.publicId } });
+    const target = req.params.publicId;
+    const complaint = await prisma.complaint.findFirst({
+      where: {
+        OR: [
+          { publicId: target },
+          { id: target }
+        ]
+      }
+    });
     if (!complaint) return res.status(404).json({ error: 'Complaint not found' });
     
     const support = await prisma.complaintSupporter.upsert({
