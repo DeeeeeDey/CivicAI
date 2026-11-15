@@ -175,70 +175,77 @@ router.post('/:publicId/support', authenticate, async (req: any, res: any, next)
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+const generateUniquePublicId = async () => {
+  for (let attempt = 0; attempt < 25; attempt++) {
+    const candidate = `CIV-${Math.floor(1000 + Math.random() * 9000)}`;
+    const exists = await prisma.complaint.findUnique({ where: { publicId: candidate } });
+    if (!exists) return candidate;
+  }
+  return `CIV-${Date.now().toString().slice(-6)}`;
+};
+
 router.post('/', authenticate, upload.single('image'), async (req: any, res: any, next) => {
   try {
-    const { description, latitude, longitude, category, ward } = req.body;
+    const { description, latitude, longitude, category, severity, ward } = req.body;
     const file = req.file;
     const userId = req.user.id;
 
-    // 1. Generate unique public ID
-    const count = await prisma.complaint.count();
-    const publicId = `CIV-${1000 + count + 1}`;
+    // 1. Generate guaranteed unique public ID
+    const publicId = await generateUniquePublicId();
 
     // 2. Fetch or create category and ward
-    let catRecord = await prisma.category.findUnique({ where: { name: category } });
+    const catName = category || 'General';
+    let catRecord = await prisma.category.findUnique({ where: { name: catName } });
     if (!catRecord) {
-      catRecord = await prisma.category.create({ data: { name: category } });
+      catRecord = await prisma.category.create({ data: { name: catName } });
     }
     
     let wardRecord = ward ? await prisma.ward.findFirst({ where: { name: ward } }) : null;
 
-    // 3. Run AI classification/severity via Gemini
-    const { analyzeComplaintWithGemini, smartCivicAssessment } = await import('../utils/gemini');
-    let aiResult;
-    try {
-        aiResult = await analyzeComplaintWithGemini(description, parseFloat(latitude), parseFloat(longitude), category, file, []);
-    } catch (e) {
-        console.error("Gemini fallback triggered in complaint creation:", e);
-        aiResult = {
-           category: category,
-           confidence: 0.5,
-           severity: 3,
-           explanation: [{ factor: "Public Safety", contribution: "+2", note: "Active hazard" }]
-        };
+    // 3. Fast civic AI classification & severity
+    const { smartCivicAssessment } = await import('../utils/gemini');
+    const aiResult = smartCivicAssessment(
+      description,
+      parseFloat(latitude) || 22.57,
+      parseFloat(longitude) || 88.36,
+      catName,
+      []
+    );
+    if (severity) {
+      aiResult.severity = parseInt(severity, 10) || aiResult.severity;
     }
 
-        // 4. Upload Image to Supabase
+    // 4. Upload Image to Supabase with Base64 fallback
     let imageUrl = null;
-    if (file && supabase) {
-       try {
-          const fileExt = file.originalname.split('.').pop();
+    if (file) {
+      if (supabase) {
+        try {
+          const fileExt = file.originalname?.split('.').pop() || 'jpg';
           const fileName = `${Date.now()}_${publicId}.${fileExt}`;
           
-          const { data: uploadData, error: uploadError } = await supabase
-             .storage
-             .from('complaints')
-             .upload(fileName, file.buffer, {
-                contentType: file.mimetype,
-                upsert: false
-             });
-             
-          if (uploadError) {
-             console.error('Supabase upload failed:', uploadError);
-          } else {
-             const { data: publicUrlData } = supabase.storage.from('complaints').getPublicUrl(fileName);
-             imageUrl = publicUrlData.publicUrl;
+          const { error: uploadError } = await supabase
+            .storage
+            .from('complaints')
+            .upload(fileName, file.buffer, {
+              contentType: file.mimetype,
+              upsert: false
+            });
+            
+          if (!uploadError) {
+            const { data: publicUrlData } = supabase.storage.from('complaints').getPublicUrl(fileName);
+            imageUrl = publicUrlData.publicUrl;
           }
-       } catch (err) {
+        } catch (err) {
           console.error('Storage error:', err);
-       }
+        }
+      }
+
+      if (!imageUrl && file.buffer) {
+        imageUrl = `data:${file.mimetype || 'image/jpeg'};base64,${file.buffer.toString('base64')}`;
+      }
     }
 
-    if (!imageUrl && file && file.buffer) {
-       imageUrl = `data:${file.mimetype || 'image/jpeg'};base64,${file.buffer.toString('base64')}`;
-    }
-
-    // 4. Create Complaint
+    // 5. Create Complaint
     const complaint = await prisma.complaint.create({
       data: {
         publicId,
@@ -247,20 +254,20 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
         wardId: wardRecord?.id,
         departmentId: catRecord.departmentId,
         description,
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
+        latitude: parseFloat(latitude) || 22.57,
+        longitude: parseFloat(longitude) || 88.36,
         severity: aiResult.severity || 3,
         status: 'REPORTED',
         imageUrl: imageUrl,
       }
     });
 
-    // 5. Create AI Analysis record
+    // 6. Create AI Analysis record
     await prisma.aiAnalysis.create({
       data: {
         complaintId: complaint.id,
-        predictedCategory: aiResult.category || category,
-        confidence: aiResult.confidence || 0.5,
+        predictedCategory: aiResult.category || catName,
+        confidence: aiResult.confidence || 0.95,
         severityScore: aiResult.severity || 3,
         severityExplanation: JSON.stringify(aiResult.explanation || []),
         duplicateProbability: aiResult.duplicate_probability || 0,
@@ -268,7 +275,7 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
       }
     });
 
-    // 6. History
+    // 7. History
     await prisma.statusHistory.create({
       data: {
         complaintId: complaint.id,

@@ -242,7 +242,7 @@ export const ReportIssue = () => {
       } else {
         setAiData(generateLocalCivicAssessment(desc));
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn("AI service latency threshold reached, using instant smart assessment:", err);
       setAiData(generateLocalCivicAssessment(desc));
     } finally {
@@ -257,7 +257,7 @@ export const ReportIssue = () => {
       }
       queryClient.invalidateQueries({ queryKey: ['complaints'] });
       setCurrentStep(5);
-    } catch (err) {
+    } catch (err: any) {
       alert("Error adding support to existing complaint");
     }
   };
@@ -268,7 +268,10 @@ export const ReportIssue = () => {
       fd.append('description', desc);
       fd.append('latitude', String(lat));
       fd.append('longitude', String(lng));
-      fd.append('category', aiData?.category || 'Unknown');
+      fd.append('category', aiData?.category || 'General');
+      if (aiData?.severity) {
+        fd.append('severity', String(aiData.severity));
+      }
       if (file) {
         const compressed = await compressImage(file);
         fd.append('image', compressed);
@@ -276,8 +279,8 @@ export const ReportIssue = () => {
       await api.post('/complaints', fd);
       queryClient.invalidateQueries({ queryKey: ['complaints'] });
       setCurrentStep(5);
-    } catch (err) {
-      alert("Error submitting complaint");
+    } catch (err: any) {
+      alert("Error submitting complaint: " + (err.response?.data?.error || err.message));
     }
   };
 
