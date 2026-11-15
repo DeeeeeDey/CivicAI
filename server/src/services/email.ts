@@ -61,9 +61,15 @@ const getEtherealTransporter = async () => {
 interface StatusEmailMeta {
   subject: string;
   badge: string;
-  badgeColor: string;
   headerText: string;
   message: string;
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+  accentColor: string;
+  bannerBg: string;
+  buttonBg: string;
+  buttonText: string;
 }
 
 const getStatusEmailMeta = (publicId: string, status: string): StatusEmailMeta => {
@@ -72,73 +78,127 @@ const getStatusEmailMeta = (publicId: string, status: string): StatusEmailMeta =
       return {
         subject: `[CivicAI] Ticket Registered: #${publicId}`,
         badge: 'REPORTED',
-        badgeColor: '#C2683A',
         headerText: 'Issue Successfully Registered',
-        message: 'Your report has been logged and assigned an audit ticket. It is now queued for municipal department triage.'
+        message: 'Your report has been logged in the municipal ledger and assigned an audit ticket. It is now queued for municipal department triage.',
+        badgeBg: '#FFF7ED',
+        badgeText: '#9A3412',
+        badgeBorder: '#FDBA74',
+        accentColor: '#C2683A',
+        bannerBg: '#FFFBF7',
+        buttonBg: '#C2683A',
+        buttonText: '#FFFFFF'
       };
     case 'UNDER_REVIEW':
       return {
         subject: `[CivicAI] Under Review: #${publicId}`,
         badge: 'UNDER REVIEW',
-        badgeColor: '#E0B84F',
         headerText: 'Under Municipal Review',
-        message: 'A municipal triage officer is reviewing the severity and routing your ticket to the responsible field department.'
+        message: 'A municipal triage officer is reviewing the severity assessment and dispatching your ticket to the responsible field department.',
+        badgeBg: '#FEF3C7',
+        badgeText: '#92400E',
+        badgeBorder: '#FCD34D',
+        accentColor: '#D97706',
+        bannerBg: '#FFFDF5',
+        buttonBg: '#D97706',
+        buttonText: '#FFFFFF'
       };
     case 'ASSIGNED':
       return {
         subject: `[CivicAI] Worker Dispatched: #${publicId}`,
         badge: 'WORKER ASSIGNED',
-        badgeColor: '#3B82F6',
         headerText: 'Field Team Dispatched',
-        message: 'A certified field worker has been assigned to your ticket with dispatch instructions.'
+        message: 'A certified field technician has been assigned to your ticket with dispatch instructions and is en route.',
+        badgeBg: '#EFF6FF',
+        badgeText: '#1E40AF',
+        badgeBorder: '#93C5FD',
+        accentColor: '#2563EB',
+        bannerBg: '#F8FAFC',
+        buttonBg: '#2563EB',
+        buttonText: '#FFFFFF'
       };
     case 'IN_PROGRESS':
       return {
         subject: `[CivicAI] Work In Progress: #${publicId}`,
         badge: 'IN PROGRESS',
-        badgeColor: '#F59E0B',
         headerText: 'Repairs Started On-Site',
-        message: 'The field crew has arrived on site and active remediation work is now in progress.'
+        message: 'The municipal crew has arrived on site and active remediation work is currently underway.',
+        badgeBg: '#FFFBEB',
+        badgeText: '#B45309',
+        badgeBorder: '#FDE68A',
+        accentColor: '#F59E0B',
+        bannerBg: '#FFFDF7',
+        buttonBg: '#D97706',
+        buttonText: '#FFFFFF'
       };
     case 'RESOLVED':
       return {
         subject: `[CivicAI] Repair Completed: #${publicId}`,
         badge: 'REPAIRS COMPLETED',
-        badgeColor: '#10B981',
         headerText: 'Field Repairs Finished',
-        message: 'The worker has completed repairs and submitted photographic evidence for municipal QA review.'
+        message: 'The field worker has finished physical repairs and uploaded photographic proof for municipal quality inspection.',
+        badgeBg: '#ECFDF5',
+        badgeText: '#065F46',
+        badgeBorder: '#A7F3D0',
+        accentColor: '#10B981',
+        bannerBg: '#F6FDF9',
+        buttonBg: '#059669',
+        buttonText: '#FFFFFF'
       };
     case 'VERIFIED':
       return {
         subject: `🎉 [CivicAI] Resolution Certified: #${publicId} Officially Resolved`,
-        badge: 'RESOLUTION VERIFIED',
-        badgeColor: '#059669',
+        badge: 'RESOLUTION CERTIFIED',
         headerText: 'Resolution Certified & Signed Off',
-        message: 'A municipal officer has inspected the photographic proof and officially certified the resolution. Thank you for making our city safer!'
+        message: 'A municipal officer has inspected the photographic proof and officially certified the resolution. Thank you for making our city safer!',
+        badgeBg: '#DEF7EC',
+        badgeText: '#03543F',
+        badgeBorder: '#31C48D',
+        accentColor: '#059669',
+        bannerBg: '#F4FBF7',
+        buttonBg: '#059669',
+        buttonText: '#FFFFFF'
       };
     case 'REOPENED':
       return {
         subject: `[CivicAI] Ticket Reopened: #${publicId}`,
         badge: 'REOPENED',
-        badgeColor: '#EF4444',
-        headerText: 'Ticket Reopened for Further Work',
-        message: 'Quality verification found that additional field remediation is needed. A worker has been re-dispatched.'
+        headerText: 'Ticket Reopened for Further Remediation',
+        message: 'Quality verification found that additional field remediation is needed. A worker has been re-dispatched.',
+        badgeBg: '#FEF2F2',
+        badgeText: '#991B1B',
+        badgeBorder: '#FECACA',
+        accentColor: '#DC2626',
+        bannerBg: '#FFF8F8',
+        buttonBg: '#DC2626',
+        buttonText: '#FFFFFF'
       };
     case 'REJECTED':
       return {
         subject: `[CivicAI] Ticket Status: #${publicId}`,
         badge: 'CLOSED',
-        badgeColor: '#6B7280',
         headerText: 'Ticket Status Update',
-        message: 'Your report was reviewed by municipal officers and marked non-actionable.'
+        message: 'Your report was reviewed by municipal officers and marked non-actionable or identified as a duplicate.',
+        badgeBg: '#F3F4F6',
+        badgeText: '#374151',
+        badgeBorder: '#D1D5DB',
+        accentColor: '#6B7280',
+        bannerBg: '#F9FAFB',
+        buttonBg: '#4B5563',
+        buttonText: '#FFFFFF'
       };
     default:
       return {
         subject: `[CivicAI] Update on Ticket #${publicId}`,
         badge: status,
-        badgeColor: '#C2683A',
         headerText: 'Ticket Status Update',
-        message: `Your ticket has transitioned to ${status}.`
+        message: `Your ticket has transitioned to ${status}.`,
+        badgeBg: '#FFF7ED',
+        badgeText: '#9A3412',
+        badgeBorder: '#FDBA74',
+        accentColor: '#C2683A',
+        bannerBg: '#FFFBF7',
+        buttonBg: '#C2683A',
+        buttonText: '#FFFFFF'
       };
   }
 };
@@ -151,8 +211,9 @@ export const sendStatusUpdateEmail = async (
   userId?: string
 ) => {
   const meta = getStatusEmailMeta(publicId, newStatus);
-  const frontendUrl = process.env.FRONTEND_URL || 'https://civicai-demo.vercel.app';
-  const trackUrl = `${frontendUrl}/track/${publicId}`;
+  const frontendUrl = process.env.FRONTEND_URL || 'https://civic-ai-2v9u-git-main-deeeeedeys-projects.vercel.app';
+  const cleanFrontendUrl = frontendUrl.replace(/\/+$/, '');
+  const trackUrl = `${cleanFrontendUrl}/track/${publicId}`;
 
   // 1. In-app notification creation
   if (userId) {
@@ -182,60 +243,85 @@ export const sendStatusUpdateEmail = async (
   // 2. Build email template
   const html = `
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
       <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>${meta.subject}</title>
     </head>
-    <body style="margin: 0; padding: 0; background-color: #F8F6F0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #F8F6F0; padding: 40px 16px;">
+    <body style="margin: 0; padding: 0; background-color: #F8F6F0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F8F6F0; padding: 36px 14px;">
         <tr>
           <td align="center">
-            <table width="100%" max-width="580px" cellpadding="0" cellspacing="0" style="max-width: 580px; background-color: #FFFFFF; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #EFECE6;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 580px; width: 100%; background-color: #FFFFFF; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06); border: 1px solid #EFECE6;">
+              <!-- Colored Accent Top Bar -->
+              <tr>
+                <td style="height: 6px; background-color: ${meta.accentColor}; font-size: 0; line-height: 0;">&nbsp;</td>
+              </tr>
+
               <!-- Header Bar -->
               <tr>
-                <td style="background-color: #1F1D1A; padding: 24px 32px; text-align: left;">
-                  <span style="font-size: 22px; font-weight: bold; color: #FFFFFF; letter-spacing: -0.5px;">Civic<span style="color: #C2683A;">AI</span></span>
-                  <span style="font-size: 11px; color: #D5D1C8; margin-left: 12px; text-transform: uppercase; letter-spacing: 1px;">Municipal Operations</span>
+                <td style="background-color: #1F1D1A; padding: 22px 32px; text-align: left;">
+                  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td align="left">
+                        <span style="font-size: 22px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.5px;">Civic<span style="color: #C2683A;">AI</span></span>
+                        <span style="font-size: 11px; color: #D5D1C8; margin-left: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Municipal Operations</span>
+                      </td>
+                    </tr>
+                  </table>
                 </td>
               </tr>
 
-              <!-- Status Banner -->
+              <!-- Status Banner with Tinted Background -->
               <tr>
-                <td style="padding: 32px 32px 20px 32px;">
-                  <span style="background-color: ${meta.badgeColor}15; color: ${meta.badgeColor}; border: 1px solid ${meta.badgeColor}40; padding: 4px 12px; border-radius: 100px; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.8px;">
-                    ${meta.badge}
-                  </span>
-                  <h1 style="color: #1F1D1A; font-size: 22px; margin: 16px 0 8px 0; font-weight: 700; line-height: 1.3;">
+                <td style="padding: 26px 32px 20px 32px; background-color: ${meta.bannerBg}; border-bottom: 1px solid #EFECE6;">
+                  <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 12px;">
+                    <tr>
+                      <td style="background-color: ${meta.badgeBg}; color: ${meta.badgeText}; border: 1px solid ${meta.badgeBorder}; padding: 5px 14px; border-radius: 9999px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                        ${meta.badge}
+                      </td>
+                    </tr>
+                  </table>
+                  <h1 style="color: #1F1D1A; font-size: 21px; margin: 0 0 6px 0; font-weight: 700; line-height: 1.35;">
                     ${meta.headerText}
                   </h1>
-                  <p style="color: #555; font-size: 14px; margin: 0; font-family: monospace;">
-                    Ticket Reference: <strong>#${publicId}</strong>
+                  <p style="color: #7C7063; font-size: 13px; margin: 0; font-family: monospace;">
+                    Ticket Reference: <strong style="color: #1F1D1A;">#${publicId}</strong>
                   </p>
                 </td>
               </tr>
 
               <!-- Body Copy -->
               <tr>
-                <td style="padding: 0 32px 24px 32px;">
+                <td style="padding: 28px 32px 24px 32px;">
                   <p style="color: #4A463F; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
                     ${meta.message}
                   </p>
                   
                   ${notes ? `
-                  <div style="background-color: #F8F6F0; border-left: 4px solid ${meta.badgeColor}; padding: 14px 18px; border-radius: 6px; margin: 20px 0;">
-                    <p style="margin: 0; color: #2C2926; font-size: 13px; font-style: italic;">
+                  <div style="background-color: #F8F6F0; border-left: 4px solid ${meta.accentColor}; padding: 14px 18px; border-radius: 6px; margin: 20px 0;">
+                    <p style="margin: 0; color: #2C2926; font-size: 13px; line-height: 1.5; font-style: italic;">
                       &ldquo;${notes}&rdquo;
                     </p>
                   </div>
                   ` : ''}
 
-                  <!-- Call to action button -->
-                  <div style="text-align: center; padding: 24px 0 12px 0;">
-                    <a href="${trackUrl}" target="_blank" style="background-color: #C2683A; color: #FFFFFF; text-decoration: none; padding: 14px 28px; border-radius: 10px; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0 4px 12px rgba(194, 104, 58, 0.25);">
-                      View Audit Track & Evidence &rarr;
-                    </a>
-                  </div>
+                  <!-- Bulletproof CTA Button -->
+                  <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin: 28px auto 14px auto;">
+                    <tr>
+                      <td align="center" style="background-color: ${meta.buttonBg}; border-radius: 10px;">
+                        <a href="${trackUrl}" target="_blank" style="background-color: ${meta.buttonBg}; color: ${meta.buttonText}; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; letter-spacing: 0.2px;">
+                          View Live Status &amp; Evidence &rarr;
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <!-- Direct clickable text link -->
+                  <p style="color: #8C867A; font-size: 11px; margin: 12px 0 0 0; text-align: center; word-break: break-all; line-height: 1.4;">
+                    Direct link: <a href="${trackUrl}" target="_blank" style="color: ${meta.accentColor}; text-decoration: underline;">${trackUrl}</a>
+                  </p>
                 </td>
               </tr>
 
