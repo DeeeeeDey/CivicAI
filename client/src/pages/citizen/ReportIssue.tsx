@@ -263,16 +263,21 @@ export const ReportIssue = () => {
   };
 
   const processAI = async () => {
-    if (currentStep !== 3) return;
+    if (!file) {
+      alert("Please upload a photo of the civic issue in Step 1 first.");
+      setCurrentStep(1);
+      return;
+    }
+
     setAiLoading(true);
-    setAiProgress(8);
+    setAiProgress(10);
     setAiStageIndex(0);
     setCurrentStep(4);
 
     const startTime = Date.now();
     const ticker = setInterval(() => {
       const elapsed = Date.now() - startTime;
-      const target = Math.min(94, Math.floor(8 + (elapsed / 25000) * 86));
+      const target = Math.min(94, Math.floor(10 + (elapsed / 25000) * 84));
       setAiProgress(target);
 
       if (target < 22) setAiStageIndex(0);
@@ -280,18 +285,26 @@ export const ReportIssue = () => {
       else if (target < 68) setAiStageIndex(2);
       else if (target < 85) setAiStageIndex(3);
       else setAiStageIndex(4);
-    }, 350);
+    }, 300);
+
+    const effectiveDesc = (desc || '').trim() || 'Civic infrastructure defect reported for municipal inspection';
 
     try {
       const fd = new FormData();
-      fd.append('description', desc);
-      fd.append('latitude', String(lat));
-      fd.append('longitude', String(lng));
+      fd.append('description', effectiveDesc);
+      fd.append('latitude', String(lat || 22.57));
+      fd.append('longitude', String(lng || 88.36));
       fd.append('category', 'Unknown');
-      if (file) {
-        const compressed = await compressImage(file);
-        fd.append('image', compressed);
+
+      let imageToSend: File | Blob = file;
+      try {
+        imageToSend = await compressImage(file);
+      } catch (cErr) {
+        console.warn("Compression skipped, sending raw file:", cErr);
+        imageToSend = file;
       }
+      fd.append('image', imageToSend);
+
       const res = await api.post('/ai/preview', fd, { timeout: 35000 });
       setAiProgress(100);
       setAiStageIndex(4);
@@ -300,13 +313,13 @@ export const ReportIssue = () => {
       if (res.data && res.data.category && res.data.category !== 'Unknown') {
         setAiData(res.data);
       } else {
-        setAiData(generateLocalCivicAssessment(desc));
+        setAiData(generateLocalCivicAssessment(effectiveDesc));
       }
     } catch (err: any) {
-      console.warn("AI service latency threshold reached, using instant smart assessment:", err);
+      console.warn("AI service latency threshold reached or error, using instant smart assessment:", err);
       setAiProgress(100);
       await new Promise(r => setTimeout(r, 300));
-      setAiData(generateLocalCivicAssessment(desc));
+      setAiData(generateLocalCivicAssessment(effectiveDesc));
     } finally {
       clearInterval(ticker);
       setAiLoading(false);
@@ -451,7 +464,10 @@ export const ReportIssue = () => {
             <motion.div key="3" initial={{opacity:0, x:20}} animate={{opacity:1, x:0}} exit={{opacity:0, x:-20}} className="flex-1 flex flex-col">
               <h2 className="text-2xl font-bold mb-6 text-ink-900">Add Details</h2>
               <div className="flex-1 flex flex-col">
-                 <label className="text-sm font-bold text-ink-900 mb-2">Description</label>
+                 <div className="flex items-center justify-between mb-2">
+                   <label className="text-sm font-bold text-ink-900">Description</label>
+                   <span className="text-xs text-ink-400 font-medium">(Optional — AI detects directly from photo)</span>
+                 </div>
                  <textarea 
                    value={desc}
                    onChange={e => setDesc(e.target.value)}
@@ -762,8 +778,16 @@ export const ReportIssue = () => {
              </Button>
              
              {currentStep === 3 ? (
-                <Button onClick={processAI} disabled={!desc || !file} className="px-8">
-                   Analyze with AI <ArrowRight size={18} className="ml-2" />
+                <Button
+                   onClick={processAI}
+                   disabled={aiLoading}
+                   className="px-8 shadow-lg shadow-accent/20 bg-accent text-white hover:bg-accent-hover"
+                >
+                   {aiLoading ? (
+                     <>Analyzing with AI... <Bot size={18} className="ml-2 animate-spin" /></>
+                   ) : (
+                     <>Analyze with AI <ArrowRight size={18} className="ml-2" /></>
+                   )}
                 </Button>
              ) : currentStep === 4 ? (
                 isSameIssue === true ? (
