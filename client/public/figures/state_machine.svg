@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 300" width="100%" height="100%">
+  <defs>
+    <marker id="fsmArrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#1e3a8a" />
+    </marker>
+  </defs>
+  <rect width="860" height="300" fill="#f8fafc" rx="8" />
+
+  <!-- State Nodes -->
+  <!-- DRAFT -->
+  <rect x="30" y="50" width="110" height="45" rx="8" fill="#94a3b8" />
+  <text x="85" y="78" font-family="Helvetica, Arial" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">DRAFT</text>
+
+  <!-- SUBMITTED -->
+  <rect x="190" y="50" width="120" height="45" rx="8" fill="#3b82f6" />
+  <text x="250" y="78" font-family="Helvetica, Arial" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">SUBMITTED</text>
+
+  <!-- ASSIGNED -->
+  <rect x="360" y="50" width="120" height="45" rx="8" fill="#6366f1" />
+  <text x="420" y="78" font-family="Helvetica, Arial" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">ASSIGNED</text>
+
+  <!-- IN_PROGRESS -->
+  <rect x="530" y="50" width="130" height="45" rx="8" fill="#eab308" />
+  <text x="595" y="78" font-family="Helvetica, Arial" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">IN_PROGRESS</text>
+
+  <!-- RESOLVED -->
+  <rect x="710" y="50" width="120" height="45" rx="8" fill="#10b981" />
+  <text x="770" y="78" font-family="Helvetica, Arial" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">RESOLVED</text>
+
+  <!-- VERIFIED (Bottom) -->
+  <rect x="710" y="190" width="120" height="45" rx="8" fill="#047857" />
+  <text x="770" y="218" font-family="Helvetica, Arial" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">VERIFIED</text>
+
+  <!-- REOPENED (Bottom Left) -->
+  <rect x="360" y="190" width="120" height="45" rx="8" fill="#ef4444" />
+  <text x="420" y="218" font-family="Helvetica, Arial" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">REOPENED</text>
+
+  <!-- Arrows -->
+  <line x1="140" y1="72" x2="185" y2="72" stroke="#1e3a8a" stroke-width="2" marker-end="url(#fsmArrow)" />
+  <text x="162" y="66" font-family="Helvetica, Arial" font-size="9" fill="#475569" text-anchor="middle">Submit</text>
+
+  <line x1="310" y1="72" x2="355" y2="72" stroke="#1e3a8a" stroke-width="2" marker-end="url(#fsmArrow)" />
+  <text x="335" y="66" font-family="Helvetica, Arial" font-size="9" fill="#475569" text-anchor="middle">Assign</text>
+
+  <line x1="480" y1="72" x2="525" y2="72" stroke="#1e3a8a" stroke-width="2" marker-end="url(#fsmArrow)" />
+  <text x="502" y="66" font-family="Helvetica, Arial" font-size="9" fill="#475569" text-anchor="middle">Start Job</text>
+
+  <line x1="660" y1="72" x2="705" y2="72" stroke="#1e3a8a" stroke-width="2" marker-end="url(#fsmArrow)" />
+  <text x="682" y="66" font-family="Helvetica, Arial" font-size="9" fill="#475569" text-anchor="middle">Proof Upload</text>
+
+  <line x1="770" y1="95" x2="770" y2="185" stroke="#1e3a8a" stroke-width="2" marker-end="url(#fsmArrow)" />
+  <text x="805" y="145" font-family="Helvetica, Arial" font-size="9" fill="#047857">Verify</text>
+
+  <line x1="710" y1="90" x2="485" y2="195" stroke="#ef4444" stroke-width="2" marker-end="url(#fsmArrow)" stroke-dasharray="4" />
+  <text x="610" y="160" font-family="Helvetica, Arial" font-size="9" fill="#ef4444">Dispute</text>
+
+  <line x1="420" y1="190" x2="420" y2="100" stroke="#1e3a8a" stroke-width="2" marker-end="url(#fsmArrow)" />
+  <text x="375" y="145" font-family="Helvetica, Arial" font-size="9" fill="#475569">Reassign</text>
+
+  <!-- Note Box -->
+  <rect x="30" y="180" width="280" height="60" rx="6" fill="#f1f5f9" stroke="#cbd5e1" />
+  <text x="40" y="200" font-family="Helvetica, Arial" font-size="10" font-weight="bold" fill="#334155">Lifecycle Automation Guards:</text>
+  <text x="40" y="216" font-family="Helvetica, Arial" font-size="9" fill="#64748b">• Automated Dual Email at EVERY step</text>
+  <text x="40" y="228" font-family="Helvetica, Arial" font-size="9" fill="#64748b">• 30-Day Auto Retention Window</text>
+</svg>
