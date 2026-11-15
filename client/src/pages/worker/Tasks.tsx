@@ -10,6 +10,53 @@ import { api } from '../../api/axios';
 import { useLocation, Link } from 'react-router-dom';
 import { Thumbnail } from '../../components/ui/ImageLightbox';
 
+const compressImage = async (file: File, maxDimension = 1600, quality = 0.8): Promise<File> => {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/') || file.type.includes('svg')) {
+      return resolve(file);
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve(file);
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return resolve(file);
+            const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            });
+            resolve(compressed);
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+};
+
 export const WorkerTasks = () => {
   const queryClient = useQueryClient();
   const location = useLocation();
@@ -49,12 +96,17 @@ export const WorkerTasks = () => {
   const [desc, setDesc] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [startingId, setStartingId] = useState<string | null>(null);
+
   const startJob = async (complaintId: string) => {
+    setStartingId(complaintId);
     try {
       await api.post(`/workers/${complaintId}/start`);
       queryClient.invalidateQueries({ queryKey: ['workerTasks'] });
     } catch (err: any) {
       alert('Failed to start job: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setStartingId(null);
     }
   };
 
@@ -77,13 +129,12 @@ export const WorkerTasks = () => {
     if (!resolvingId || !proofFile) return;
     setIsSubmitting(true);
     try {
+      const compressed = await compressImage(proofFile);
       const fd = new FormData();
-      fd.append('image', proofFile);
+      fd.append('image', compressed);
       fd.append('description', desc);
 
-      await api.post(`/workers/${resolvingId}/resolve`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      await api.post(`/workers/${resolvingId}/resolve`, fd);
 
       closeProofModal();
       queryClient.invalidateQueries({ queryKey: ['workerTasks'] });
@@ -249,8 +300,12 @@ export const WorkerTasks = () => {
                           >
                             <Navigation size={15} /> Directions
                           </Button>
-                          <Button className="w-full text-xs py-2.5" onClick={() => startJob(c.id)}>
-                            Start Job
+                          <Button
+                            className="w-full text-xs py-2.5"
+                            onClick={() => startJob(c.id)}
+                            disabled={startingId === c.id}
+                          >
+                            {startingId === c.id ? 'Starting...' : 'Start Job'}
                           </Button>
                         </>
                       ) : (

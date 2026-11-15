@@ -38,6 +38,53 @@ const steps = [
   { id: 5, name: 'Submit', icon: CheckCircle2 }
 ];
 
+const compressImage = async (file: File, maxDimension = 1600, quality = 0.8): Promise<File> => {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/') || file.type.includes('svg')) {
+      return resolve(file);
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve(file);
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return resolve(file);
+            const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            });
+            resolve(compressed);
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+};
+
 export const ReportIssue = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -71,12 +118,10 @@ export const ReportIssue = () => {
       fd.append('longitude', String(lng));
       fd.append('category', 'Unknown');
       if (file) {
-         fd.append('image', file);
+        const compressed = await compressImage(file);
+        fd.append('image', compressed);
       }
-      
-      const res = await api.post('/ai/preview', fd, {
-         headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const res = await api.post('/ai/preview', fd);
       setAiData(res.data);
     } catch (err) {
       console.error(err);
@@ -105,12 +150,10 @@ export const ReportIssue = () => {
       fd.append('longitude', String(lng));
       fd.append('category', aiData?.category || 'Unknown');
       if (file) {
-         fd.append('image', file);
+        const compressed = await compressImage(file);
+        fd.append('image', compressed);
       }
-      
-      await api.post('/complaints', fd, {
-         headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      await api.post('/complaints', fd);
       queryClient.invalidateQueries({ queryKey: ['complaints'] });
       setCurrentStep(5);
     } catch (err) {

@@ -9,7 +9,11 @@ const prisma = new PrismaClient();
 import multer from 'multer';
 import { createClient } from '@supabase/supabase-js';
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
@@ -28,7 +32,14 @@ router.get('/tasks', async (req: AuthRequest, res, next) => {
 
     const tasks = await prisma.assignment.findMany({
       where: whereClause,
-      include: { complaint: { include: { category: true, resolutions: true } } },
+      include: {
+        complaint: {
+          include: {
+            category: true,
+            resolutions: { orderBy: { createdAt: 'desc' } }
+          }
+        }
+      },
       orderBy: { assignedAt: 'desc' }
     });
     res.json(tasks);
@@ -38,6 +49,14 @@ router.get('/tasks', async (req: AuthRequest, res, next) => {
 router.post('/:id/start', async (req: AuthRequest, res, next) => {
   try {
     const complaintId = req.params.id as string;
+    const existing = await prisma.complaint.findUnique({ where: { id: complaintId } });
+    if (!existing) return res.status(404).json({ error: 'Complaint not found' });
+    
+    // Idempotent: If already in progress, simply return current state
+    if (existing.status === 'IN_PROGRESS') {
+      return res.json(existing);
+    }
+    
     const comp = await transitionComplaint(complaintId, 'IN_PROGRESS', req.user.id, 'Worker started job');
     res.json(comp);
   } catch (err) { next(err); }
@@ -50,34 +69,41 @@ router.post('/:id/resolve', upload.single('image'), async (req: any, res, next) 
     const complaintId = req.params.id as string;
     let proofImageUrl = req.body.proofImageUrl || null;
 
-    if (file && supabase) {
-       try {
-          const fileExt = file.originalname.split('.').pop();
+    if (file) {
+      if (supabase) {
+        try {
+          const fileExt = file.originalname?.split('.').pop() || 'jpg';
           const fileName = `proof_${Date.now()}_${complaintId}.${fileExt}`;
           
           const { error: uploadError } = await supabase
-             .storage
-             .from('complaints')
-             .upload(fileName, file.buffer, {
-                contentType: file.mimetype,
-                upsert: false
-             });
-             
+            .storage
+            .from('complaints')
+            .upload(fileName, file.buffer, {
+              contentType: file.mimetype,
+              upsert: false
+            });
+            
           if (!uploadError) {
-             const { data: publicUrlData } = supabase.storage.from('complaints').getPublicUrl(fileName);
-             proofImageUrl = publicUrlData.publicUrl;
+            const { data: publicUrlData } = supabase.storage.from('complaints').getPublicUrl(fileName);
+            proofImageUrl = publicUrlData.publicUrl;
           }
-       } catch (err) {
-          console.error("Storage error:", err);
-       }
+        } catch (err) {
+          console.error("Storage error, using base64 fallback:", err);
+        }
+      }
+
+      // If Supabase wasn't configured or failed, preserve image via Base64 data URI so evidence is NEVER lost
+      if (!proofImageUrl && file.buffer) {
+        proofImageUrl = `data:${file.mimetype || 'image/jpeg'};base64,${file.buffer.toString('base64')}`;
+      }
     }
     
-    await prisma.resolution.create({
+    const resolution = await prisma.resolution.create({
       data: {
         complaintId,
         workerId: req.user.id,
         proofImageUrl,
-        description,
+        description: description || 'Field repair completed by municipal worker.',
         latitude: latitude ? parseFloat(latitude) : null,
         longitude: longitude ? parseFloat(longitude) : null,
         verificationStatus: 'PENDING'
@@ -89,8 +115,12 @@ router.post('/:id/resolve', upload.single('image'), async (req: any, res, next) 
       data: { completedAt: new Date() }
     });
 
-    const comp = await transitionComplaint(complaintId, 'RESOLVED', req.user.id, 'Worker uploaded resolution proof');
-    res.json(comp);
+    const complaint = await prisma.complaint.findUnique({ where: { id: complaintId } });
+    let comp = complaint;
+    if (complaint && complaint.status !== 'RESOLVED') {
+      comp = await transitionComplaint(complaintId, 'RESOLVED', req.user.id, 'Worker uploaded resolution proof');
+    }
+    res.json({ complaint: comp, resolution });
   } catch (err) { next(err); }
 });
 

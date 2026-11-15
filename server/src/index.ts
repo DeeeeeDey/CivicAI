@@ -16,6 +16,7 @@ import citizenRoutes from './routes/citizens';
 import analyticsRoutes from './routes/analytics';
 import adminRoutes from './routes/admin';
 import aiRoutes from './routes/ai';
+import { purgeExpiredResolvedComplaints } from './services/retention';
 
 const app = express();
 
@@ -49,6 +50,12 @@ app.use('/api/ai', aiRoutes);
 app.use((req, res, next) => res.status(404).json({ error: 'Endpoint not found: ' + req.originalUrl }));
 
 app.use(errorHandler);
+
+// Run 30-day retention purge on startup and every 12 hours
+purgeExpiredResolvedComplaints();
+setInterval(() => {
+  purgeExpiredResolvedComplaints();
+}, 12 * 60 * 60 * 1000);
 
 const PORT = process.env.PORT || 4000;
 if (process.env.NODE_ENV !== "production") { app.listen(PORT, () => console.log(`Server running on port ${PORT}`)); }

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient, Role } from '@prisma/client';
 import { authenticate, requireRole, AuthRequest } from '../middlewares';
+import { purgeExpiredResolvedComplaints } from '../services/retention';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -128,7 +129,7 @@ router.get('/complaints', async (req, res, next) => {
         assignments: {
           include: { worker: { select: { id: true, name: true, email: true } } }
         },
-        resolutions: true
+        resolutions: { orderBy: { createdAt: 'desc' } }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -145,9 +146,18 @@ router.delete('/complaints/:id', async (req, res, next) => {
     await prisma.complaintSupporter.deleteMany({ where: { complaintId } });
     await prisma.assignment.deleteMany({ where: { complaintId } });
     await prisma.resolution.deleteMany({ where: { complaintId } });
+    await prisma.aiAnalysis.deleteMany({ where: { complaintId } });
+    await prisma.comment.deleteMany({ where: { complaintId } });
     await prisma.complaint.delete({ where: { id: complaintId } });
 
     res.json({ success: true, message: 'Complaint purged successfully' });
+  } catch (err) { next(err); }
+});
+
+router.post('/retention/purge', async (req, res, next) => {
+  try {
+    const result = await purgeExpiredResolvedComplaints();
+    res.json(result);
   } catch (err) { next(err); }
 });
 

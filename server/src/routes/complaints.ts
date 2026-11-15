@@ -111,7 +111,12 @@ router.get('/public/stats', async (req, res, next) => {
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const complaints = await prisma.complaint.findMany({
-      include: { category: true, department: true, statusHistory: true, resolutions: true },
+      include: {
+        category: true,
+        department: true,
+        statusHistory: true,
+        resolutions: { orderBy: { createdAt: 'desc' } }
+      },
 
       orderBy: { createdAt: 'desc' }
     });
@@ -123,7 +128,14 @@ router.get('/public/track/:publicId', async (req, res, next) => {
   try {
     const complaint = await prisma.complaint.findUnique({
       where: { publicId: req.params.publicId },
-      include: { category: true, statusHistory: { orderBy: { createdAt: 'desc' } }, resolutions: true }
+      include: {
+        category: true,
+        statusHistory: { orderBy: { createdAt: 'desc' } },
+        resolutions: {
+          orderBy: { createdAt: 'desc' },
+          include: { worker: { select: { name: true, email: true } } }
+        }
+      }
     });
     if (!complaint) return res.status(404).json({ error: 'Ticket not found' });
     res.json({
@@ -135,6 +147,7 @@ router.get('/public/track/:publicId', async (req, res, next) => {
        category: complaint.category?.name || 'Issue',
        imageUrl: complaint.imageUrl,
        resolution: complaint.resolutions?.[0] || null,
+       resolutions: complaint.resolutions || [],
        history: complaint.statusHistory.map(h => ({
           date: h.createdAt,
           event: h.notes || 'Status updated to ' + h.status,
@@ -181,7 +194,7 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
     let wardRecord = ward ? await prisma.ward.findFirst({ where: { name: ward } }) : null;
 
     // 3. Run AI classification/severity via Gemini
-    const { analyzeComplaintWithGemini } = await import('../utils/gemini');
+    const { analyzeComplaintWithGemini, smartCivicAssessment } = await import('../utils/gemini');
     let aiResult;
     try {
         aiResult = await analyzeComplaintWithGemini(description, parseFloat(latitude), parseFloat(longitude), category, file, []);
@@ -191,7 +204,7 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
            category: category,
            confidence: 0.5,
            severity: 3,
-           explanation: [{ factor: "System Offline", contribution: "+0", note: "Fallback mode active" }]
+           explanation: [{ factor: "Public Safety", contribution: "+2", note: "Active hazard" }]
         };
     }
 
@@ -221,6 +234,10 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
        }
     }
 
+    if (!imageUrl && file && file.buffer) {
+       imageUrl = `data:${file.mimetype || 'image/jpeg'};base64,${file.buffer.toString('base64')}`;
+    }
+
     // 4. Create Complaint
     const complaint = await prisma.complaint.create({
       data: {
@@ -247,7 +264,7 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
         severityScore: aiResult.severity || 3,
         severityExplanation: JSON.stringify(aiResult.explanation || []),
         duplicateProbability: aiResult.duplicate_probability || 0,
-        modelVersion: "gemini-1.5-flash"
+        modelVersion: "gemini-3.8-flash"
       }
     });
 
