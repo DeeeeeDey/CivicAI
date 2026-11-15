@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { PrismaClient, Role } from '@prisma/client';
 import { authenticate, requireRole, AuthRequest } from '../middlewares';
 import { transitionComplaint } from '../services/stateMachine';
@@ -18,9 +18,18 @@ router.use(authenticate, requireRole(Role.WORKER));
 
 router.get('/tasks', async (req: AuthRequest, res, next) => {
   try {
+    const { status } = req.query;
+    const whereClause: any = { workerId: req.user.id };
+    if (status === 'completed') {
+      whereClause.completedAt = { not: null };
+    } else {
+      whereClause.completedAt = null;
+    }
+
     const tasks = await prisma.assignment.findMany({
-      where: { workerId: req.user.id, completedAt: null },
-      include: { complaint: { include: { category: true } } }
+      where: whereClause,
+      include: { complaint: { include: { category: true, resolutions: true } } },
+      orderBy: { assignedAt: 'desc' }
     });
     res.json(tasks);
   } catch (err) { next(err); }
@@ -28,7 +37,8 @@ router.get('/tasks', async (req: AuthRequest, res, next) => {
 
 router.post('/:id/start', async (req: AuthRequest, res, next) => {
   try {
-    const comp = await transitionComplaint(req.params.id, 'IN_PROGRESS', req.user.id, 'Worker started job');
+    const complaintId = req.params.id as string;
+    const comp = await transitionComplaint(complaintId, 'IN_PROGRESS', req.user.id, 'Worker started job');
     res.json(comp);
   } catch (err) { next(err); }
 });
@@ -37,12 +47,13 @@ router.post('/:id/resolve', upload.single('image'), async (req: any, res, next) 
   try {
     const { description, latitude, longitude } = req.body;
     const file = req.file;
+    const complaintId = req.params.id as string;
     let proofImageUrl = req.body.proofImageUrl || null;
 
     if (file && supabase) {
        try {
           const fileExt = file.originalname.split('.').pop();
-          const fileName = `proof_${Date.now()}_${req.params.id}.${fileExt}`;
+          const fileName = `proof_${Date.now()}_${complaintId}.${fileExt}`;
           
           const { error: uploadError } = await supabase
              .storage
@@ -63,7 +74,7 @@ router.post('/:id/resolve', upload.single('image'), async (req: any, res, next) 
     
     await prisma.resolution.create({
       data: {
-        complaintId: req.params.id,
+        complaintId,
         workerId: req.user.id,
         proofImageUrl,
         description,
@@ -73,7 +84,12 @@ router.post('/:id/resolve', upload.single('image'), async (req: any, res, next) 
       }
     });
 
-    const comp = await transitionComplaint(req.params.id, 'RESOLVED', req.user.id, 'Worker uploaded resolution proof');
+    await prisma.assignment.updateMany({
+      where: { complaintId, workerId: req.user.id, completedAt: null },
+      data: { completedAt: new Date() }
+    });
+
+    const comp = await transitionComplaint(complaintId, 'RESOLVED', req.user.id, 'Worker uploaded resolution proof');
     res.json(comp);
   } catch (err) { next(err); }
 });

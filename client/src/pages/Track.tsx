@@ -5,33 +5,40 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, CheckCircle2, Clock, AlertTriangle, FileText, ArrowRight } from 'lucide-react';
+import { Search, CheckCircle2, Clock, AlertTriangle, FileText, Bot } from 'lucide-react';
 import { api } from '../api/axios';
 
 export const Track = () => {
   const { id } = useParams<{ id: string }>();
   const [ticketId, setTicketId] = useState(id || '');
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [complaint, setComplaint] = useState<any>(null);
 
   useEffect(() => {
     if (id) {
-      handleTrack({ preventDefault: () => {} });
+      handleTrackDirect(id);
     }
   }, [id]);
 
-  const handleTrack = async (e: any) => {
-    e.preventDefault();
-    if (!ticketId) return;
+  const handleTrackDirect = async (code: string) => {
+    if (!code.trim()) return;
     setLoading(true);
+    setErrorMsg(null);
     try {
-      const res = await api.get(`/complaints/public/track/${ticketId}`);
+      const res = await api.get(`/complaints/public/track/${code.trim()}`);
       setComplaint(res.data);
-      setLoading(false);
     } catch(err: any) {
-      alert(err.response?.data?.error || "Ticket not found");
+      setComplaint(null);
+      setErrorMsg(err.response?.data?.error || "Complaint ID not found. Please verify the code and try again.");
+    } finally {
       setLoading(false);
     }
+  };
+
+  const handleTrack = async (e: any) => {
+    e.preventDefault();
+    handleTrackDirect(ticketId);
   };
 
   return (
@@ -55,6 +62,11 @@ export const Track = () => {
                  {loading ? 'Searching...' : 'Track'}
               </Button>
            </form>
+           {errorMsg && (
+              <div className="mt-4 p-3 bg-danger/10 border border-danger/30 rounded-xl text-danger text-sm font-medium flex items-center justify-center gap-2">
+                 <AlertTriangle size={16} /> {errorMsg}
+              </div>
+           )}
         </GlassCard>
       </motion.div>
 
@@ -66,12 +78,14 @@ export const Track = () => {
                      <div>
                         <div className="flex items-center gap-3 mb-2">
                            <h2 className="text-2xl font-bold text-ink-900">#{complaint.publicId}</h2>
-                           <Badge color="info">{complaint.status.replace('_', ' ')}</Badge>
+                           <Badge color={complaint.status === 'RESOLVED' ? 'success' : complaint.status === 'IN_PROGRESS' ? 'warning' : 'info'}>
+                              {complaint.status.replace('_', ' ')}
+                           </Badge>
                         </div>
                         <p className="text-ink-700">{complaint.description}</p>
                         {complaint.imageUrl && (
                            <div className="mt-4 h-48 w-full rounded-xl overflow-hidden border border-border">
-                              <img src={complaint.imageUrl} className="w-full h-full object-cover" />
+                              <img src={complaint.imageUrl} alt="Complaint Evidence" className="w-full h-full object-cover" />
                            </div>
                         )}
                         
@@ -80,12 +94,14 @@ export const Track = () => {
                               <h3 className="text-success font-bold mb-2 flex items-center gap-2"><CheckCircle2 size={16}/> Resolution Proof</h3>
                               <p className="text-sm text-ink-700 mb-3">{complaint.resolution.description || 'Issue has been successfully resolved.'}</p>
                               <div className="h-48 w-full rounded-xl overflow-hidden border border-success/20">
-                                 <img src={complaint.resolution.proofImageUrl} className="w-full h-full object-cover" />
+                                 <img src={complaint.resolution.proofImageUrl} alt="Resolution Proof" className="w-full h-full object-cover" />
                               </div>
                            </div>
                         )}
                      </div>
-                     <Badge color="danger">Severity {complaint.severity}</Badge>
+                     <Badge color={complaint.severity >= 4 ? 'danger' : complaint.severity === 3 ? 'warning' : 'info'}>
+                        Severity {complaint.severity}/5
+                     </Badge>
                   </div>
 
                   <h3 className="text-lg font-bold text-ink-900 mb-6 flex items-center gap-2"><Clock size={18}/> Audit Timeline</h3>

@@ -10,16 +10,17 @@ router.use(authenticate, requireRole(Role.CITIZEN));
 router.post('/:id/verify', async (req: AuthRequest, res, next) => {
   try {
     const { isResolved, rating, reason } = req.body;
+    const complaintId = req.params.id as string;
     
     if (isResolved) {
-      const comp = await transitionComplaint(req.params.id, 'VERIFIED', req.user.id, 'Citizen verified');
+      const comp = await transitionComplaint(complaintId, 'VERIFIED', req.user.id, 'Citizen verified');
       await prisma.resolution.updateMany({
-        where: { complaintId: req.params.id },
+        where: { complaintId },
         data: { verificationStatus: 'VERIFIED', citizenRating: rating }
       });
       res.json(comp);
     } else {
-      const comp = await transitionComplaint(req.params.id, 'REOPENED', req.user.id, `Citizen rejected: ${reason}`);
+      const comp = await transitionComplaint(complaintId, 'REOPENED', req.user.id, `Citizen rejected: ${reason}`);
       res.json(comp);
     }
   } catch (err) { next(err); }

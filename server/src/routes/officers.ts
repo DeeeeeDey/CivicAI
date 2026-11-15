@@ -38,7 +38,8 @@ router.get('/workers', async (req: AuthRequest, res, next) => {
 router.post('/:id/status', async (req: AuthRequest, res, next) => {
   try {
     const { status, notes } = req.body;
-    const comp = await transitionComplaint(req.params.id, status, req.user.id, notes);
+    const complaintId = req.params.id as string;
+    const comp = await transitionComplaint(complaintId, status, req.user.id, notes);
     res.json(comp);
   } catch (err) {
     if (err instanceof InvalidStateTransitionError) {
@@ -51,10 +52,11 @@ router.post('/:id/status', async (req: AuthRequest, res, next) => {
 router.post('/:id/override', async (req: AuthRequest, res, next) => {
   try {
     const { categoryId, departmentId, severity, reason } = req.body;
+    const complaintId = req.params.id as string;
     if (!reason) return res.status(400).json({ error: 'Reason required' });
 
     const comp = await prisma.complaint.update({
-      where: { id: req.params.id },
+      where: { id: complaintId },
       data: { categoryId, departmentId, severity }
     });
 
@@ -74,10 +76,11 @@ router.post('/:id/override', async (req: AuthRequest, res, next) => {
 router.post('/:id/assign', async (req: AuthRequest, res, next) => {
   try {
     const { workerId } = req.body;
+    const complaintId = req.params.id as string;
     await prisma.assignment.create({
-      data: { complaintId: req.params.id, officerId: req.user.id, workerId }
+      data: { complaintId, officerId: req.user.id, workerId }
     });
-    const comp = await transitionComplaint(req.params.id, 'ASSIGNED', req.user.id, `Assigned to worker`);
+    const comp = await transitionComplaint(complaintId, 'ASSIGNED', req.user.id, `Assigned to worker`);
     res.json(comp);
   } catch (err) { next(err); }
 });

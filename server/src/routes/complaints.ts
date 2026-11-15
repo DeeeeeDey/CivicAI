@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { authenticate } from '../middlewares';
@@ -111,7 +111,7 @@ router.get('/public/stats', async (req, res, next) => {
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const complaints = await prisma.complaint.findMany({
-      include: { category: true, department: true, statusHistory: true },
+      include: { category: true, department: true, statusHistory: true, resolutions: true },
 
       orderBy: { createdAt: 'desc' }
     });
@@ -133,6 +133,8 @@ router.get('/public/track/:publicId', async (req, res, next) => {
        severity: complaint.severity,
        createdAt: complaint.createdAt,
        category: complaint.category?.name || 'Issue',
+       imageUrl: complaint.imageUrl,
+       resolution: complaint.resolutions?.[0] || null,
        history: complaint.statusHistory.map(h => ({
           date: h.createdAt,
           event: h.notes || 'Status updated to ' + h.status,
