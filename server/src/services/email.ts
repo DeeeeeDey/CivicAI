@@ -211,7 +211,7 @@ export const sendStatusUpdateEmail = async (
   userId?: string
 ) => {
   const meta = getStatusEmailMeta(publicId, newStatus);
-  const frontendUrl = process.env.FRONTEND_URL || 'https://civic-ai-2v9u-git-main-deeeeedeys-projects.vercel.app';
+  const frontendUrl = process.env.FRONTEND_URL || 'https://civic-ai-2v9u.vercel.app';
   const cleanFrontendUrl = frontendUrl.replace(/\/+$/, '');
   const trackUrl = `${cleanFrontendUrl}/track/${publicId}`;
 
