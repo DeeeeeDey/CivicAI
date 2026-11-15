@@ -20,7 +20,8 @@ import {
   Sun,
   Menu,
   ShieldCheck,
-  Briefcase
+  Briefcase,
+  Copy
 } from 'lucide-react';
 import { LocationPill } from '../components/LocationPill';
 
@@ -57,7 +58,8 @@ export const DashboardLayout = () => {
         items: [
           { name: 'Command Center', path: '/officer/dashboard', icon: BarChart2 },
           { name: 'Complaint Queue', path: '/officer/queue', icon: FileText },
-          { name: 'Verification Queue', path: '/officer/verification', icon: ShieldCheck }
+          { name: 'Verification Queue', path: '/officer/verification', icon: ShieldCheck },
+          { name: 'Duplicate Queue', path: '/officer/duplicates', icon: Copy }
         ]
       },
       {

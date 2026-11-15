@@ -34,6 +34,7 @@ import { NotificationsPage } from './pages/citizen/NotificationsPage';
 import { OfficerDashboard } from './pages/officer/Dashboard';
 import { OfficerQueuePage } from './pages/officer/QueuePage';
 import { OfficerVerificationPage } from './pages/officer/VerificationPage';
+import { OfficerDuplicatesPage } from './pages/officer/DuplicatesPage';
 import { OfficerWorkersPage } from './pages/officer/WorkersPage';
 import { OfficerAnalyticsPage } from './pages/officer/AnalyticsPage';
 
@@ -110,6 +111,7 @@ function App() {
                      <Route path="/officer/dashboard" element={<OfficerDashboard />} />
                      <Route path="/officer/queue" element={<OfficerQueuePage />} />
                      <Route path="/officer/verification" element={<OfficerVerificationPage />} />
+                     <Route path="/officer/duplicates" element={<OfficerDuplicatesPage />} />
                      <Route path="/officer/workers" element={<OfficerWorkersPage />} />
                      <Route path="/officer/analytics" element={<OfficerAnalyticsPage />} />
                    </Route>

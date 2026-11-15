@@ -4,7 +4,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { staggerContainer, scrollReveal } from '../../lib/motion';
-import { AlertTriangle, Bot, XCircle, Users, CheckCircle2, Clock, ArrowRight, Eye, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Bot, XCircle, Users, CheckCircle2, Clock, ArrowRight, Eye, ShieldAlert, Copy } from 'lucide-react';
 import { api } from '../../api/axios';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -105,6 +105,11 @@ export const OfficerDashboard = () => {
           <p className="text-ink-500 mt-1">Overview of municipal triage, incoming queues, and dispatched field teams.</p>
         </div>
         <div className="flex items-center gap-3">
+          <Link to="/officer/duplicates">
+            <Button variant="outline" className="text-xs flex items-center gap-2 border-amber-300 text-amber-900 bg-amber-50/60 hover:bg-amber-100">
+              <Copy size={14} className="text-amber-700" /> Duplicate Queue
+            </Button>
+          </Link>
           <Link to="/officer/verification">
             <Button variant="secondary" className="text-xs flex items-center gap-2">
               <CheckCircle2 size={14} className="text-success" /> Verification Queue ({stats?.needsVerification || 0})

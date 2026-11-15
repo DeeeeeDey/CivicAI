@@ -475,7 +475,26 @@ export const ReportIssue = () => {
                              <Copy className="text-accent" size={18} />
                              <h3 className="font-bold text-ink-900">03 Duplicate Detection</h3>
                           </div>
-                          <p className="text-sm text-ink-500 mb-4">We found a visually and contextually similar issue nearby.</p>
+                          <p className="text-sm text-ink-500 mb-2">We found an active issue nearby with high similarity.</p>
+                          {aiData.matched_complaint && (
+                            <div className="p-3 mb-3 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 rounded-lg flex items-start gap-3">
+                              {aiData.matched_complaint.imageUrl && (
+                                <img
+                                  src={aiData.matched_complaint.imageUrl}
+                                  alt="Existing issue"
+                                  className="w-14 h-14 object-cover rounded-md border border-paper-line shrink-0"
+                                />
+                              )}
+                              <div className="flex-1 min-w-0 text-left">
+                                <p className="text-xs font-bold text-ink-900 truncate">
+                                  #{aiData.matched_complaint.publicId} &bull; {aiData.matched_complaint.category || 'General'}
+                                </p>
+                                <p className="text-xs text-ink-600 line-clamp-2 mt-0.5">
+                                  {aiData.matched_complaint.description}
+                                </p>
+                              </div>
+                            </div>
+                          )}
                           <div className="grid grid-cols-2 gap-4 text-center text-sm mb-4">
                              <div className="p-2 border border-border rounded-lg bg-white/50">
                                 <p className="font-bold text-accent">{Math.round(aiData.duplicate_probability * 100)}% Match</p>

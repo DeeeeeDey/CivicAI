@@ -116,7 +116,10 @@ router.get('/', authenticate, async (req, res, next) => {
         category: true,
         department: true,
         statusHistory: true,
-        resolutions: { orderBy: { createdAt: 'desc' } }
+        resolutions: { orderBy: { createdAt: 'desc' } },
+        aiAnalysis: true,
+        citizen: { select: { id: true, name: true, email: true } },
+        supporters: true
       },
 
       orderBy: { createdAt: 'desc' }
@@ -203,14 +206,33 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
     
     let wardRecord = ward ? await prisma.ward.findFirst({ where: { name: ward } }) : null;
 
-    // 3. Fast civic AI classification & severity
+    // 3. Fast civic AI classification & duplicate check against active complaints
+    const nearbyComplaints = await prisma.complaint.findMany({
+      take: 50,
+      where: { status: { notIn: ['RESOLVED', 'VERIFIED', 'REJECTED'] } },
+      include: { category: true },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const nearbyMapped = nearbyComplaints.map(e => ({
+      id: e.id,
+      publicId: e.publicId,
+      description: e.description,
+      latitude: e.latitude,
+      longitude: e.longitude,
+      category: e.category?.name || 'General',
+      imageUrl: e.imageUrl,
+      status: e.status,
+      createdAt: e.createdAt
+    }));
+
     const { smartCivicAssessment } = await import('../utils/gemini');
     const aiResult = smartCivicAssessment(
       description,
       parseFloat(latitude) || 22.57,
       parseFloat(longitude) || 88.36,
       catName,
-      []
+      nearbyMapped
     );
     if (severity) {
       aiResult.severity = parseInt(severity, 10) || aiResult.severity;
@@ -272,6 +294,7 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
         severityScore: aiResult.severity || 3,
         severityExplanation: JSON.stringify(aiResult.explanation || []),
         duplicateProbability: aiResult.duplicate_probability || 0,
+        duplicateOf: aiResult.matched_complaint_id || null,
         modelVersion: "gemini-3.8-flash"
       }
     });

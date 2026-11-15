@@ -221,4 +221,185 @@ router.post('/:id/assign', async (req: AuthRequest, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Duplicates Queue: complaints with high duplicate probability
+router.get('/duplicates', async (req: AuthRequest, res, next) => {
+  try {
+    const candidates = await prisma.complaint.findMany({
+      where: {
+        status: { in: ['REPORTED', 'UNDER_REVIEW', 'ASSIGNED', 'IN_PROGRESS'] },
+        aiAnalysis: {
+          OR: [
+            { duplicateProbability: { gte: 0.4 } },
+            { duplicateOf: { not: null } }
+          ]
+        }
+      },
+      include: {
+        category: true,
+        citizen: { select: { id: true, name: true, email: true } },
+        aiAnalysis: true,
+        supporters: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Populate details of the referenced target ticket for each duplicate
+    const enriched = await Promise.all(candidates.map(async (c) => {
+      let targetTicket: any = null;
+      const targetId = c.aiAnalysis?.duplicateOf;
+      if (targetId) {
+        targetTicket = await prisma.complaint.findFirst({
+          where: {
+            OR: [
+              { publicId: targetId },
+              { id: targetId }
+            ]
+          },
+          include: {
+            category: true,
+            citizen: { select: { id: true, name: true, email: true } },
+            assignments: {
+              where: { completedAt: null },
+              include: { worker: { select: { name: true, email: true } } }
+            }
+          }
+        });
+      }
+
+      return {
+        ...c,
+        matchedTicket: targetTicket
+      };
+    }));
+
+    res.json(enriched);
+  } catch (err) { next(err); }
+});
+
+router.post('/duplicates/:id/merge', async (req: AuthRequest, res, next) => {
+  try {
+    const complaintId = req.params.id as string;
+    const { targetPublicId, notes } = req.body;
+
+    const duplicateComp = await prisma.complaint.findUnique({
+      where: { id: complaintId },
+      include: { citizen: true, supporters: true, aiAnalysis: true }
+    });
+    if (!duplicateComp) return res.status(404).json({ error: 'Duplicate complaint not found' });
+
+    const primaryPublicId = targetPublicId || duplicateComp.aiAnalysis?.duplicateOf;
+    if (!primaryPublicId) return res.status(400).json({ error: 'Primary complaint reference required' });
+
+    const primaryComp = await prisma.complaint.findFirst({
+      where: {
+        OR: [
+          { publicId: primaryPublicId },
+          { id: primaryPublicId }
+        ]
+      }
+    });
+    if (!primaryComp) return res.status(404).json({ error: 'Primary complaint not found' });
+
+    // 1. Move all supporters from duplicate to primary ticket
+    for (const sup of duplicateComp.supporters) {
+      await prisma.complaintSupporter.upsert({
+        where: {
+          complaintId_userId: { complaintId: primaryComp.id, userId: sup.userId }
+        },
+        update: {},
+        create: { complaintId: primaryComp.id, userId: sup.userId }
+      });
+    }
+
+    // 2. Also register the reporting citizen of duplicate as supporter of primary
+    if (duplicateComp.citizenId) {
+      await prisma.complaintSupporter.upsert({
+        where: {
+          complaintId_userId: { complaintId: primaryComp.id, userId: duplicateComp.citizenId }
+        },
+        update: {},
+        create: { complaintId: primaryComp.id, userId: duplicateComp.citizenId }
+      });
+    }
+
+    // 3. Mark duplicate complaint as REJECTED with clear notes
+    const updatedComp = await prisma.complaint.update({
+      where: { id: complaintId },
+      data: { status: 'REJECTED' }
+    });
+
+    await prisma.statusHistory.create({
+      data: {
+        complaintId: duplicateComp.id,
+        status: 'REJECTED',
+        notes: `Merged into primary ticket #${primaryComp.publicId}. ${notes || 'Duplicate report merged by triage officer.'}`
+      }
+    });
+
+    await prisma.aiAnalysis.updateMany({
+      where: { complaintId: duplicateComp.id },
+      data: { duplicateProbability: 1.0, duplicateOf: primaryComp.publicId }
+    });
+
+    // 4. Log in AuditLog
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user.id,
+        complaintId: duplicateComp.id,
+        action: 'DUPLICATE_MERGED',
+        details: JSON.stringify({
+          primaryComplaintId: primaryComp.id,
+          primaryPublicId: primaryComp.publicId,
+          notes: notes || 'Merged by municipal officer'
+        })
+      }
+    });
+
+    // 5. Send status update email and in-app notification to the citizen
+    if (duplicateComp.citizen?.email) {
+      const { sendStatusUpdateEmail } = await import('../services/email');
+      sendStatusUpdateEmail(
+        duplicateComp.citizen.email,
+        duplicateComp.publicId,
+        'REJECTED',
+        `Merged into primary ticket #${primaryComp.publicId}. You are subscribed to #${primaryComp.publicId} and will receive all repair updates.`,
+        duplicateComp.citizenId
+      ).catch(e => console.error('Failed to notify citizen on merge:', e));
+    }
+
+    res.json({ success: true, primaryComplaint: primaryComp, mergedComplaint: updatedComp });
+  } catch (err) { next(err); }
+});
+
+router.post('/duplicates/:id/dismiss', async (req: AuthRequest, res, next) => {
+  try {
+    const complaintId = req.params.id as string;
+    const { reason } = req.body;
+
+    await prisma.aiAnalysis.updateMany({
+      where: { complaintId },
+      data: { duplicateProbability: 0, duplicateOf: null }
+    });
+
+    await prisma.statusHistory.create({
+      data: {
+        complaintId,
+        status: 'UNDER_REVIEW',
+        notes: `Duplicate flag dismissed by triage officer. ${reason || 'Officer confirmed this is a distinct issue.'}`
+      }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user.id,
+        complaintId,
+        action: 'DUPLICATE_FLAG_DISMISSED',
+        details: JSON.stringify({ reason: reason || 'Distinct civic issue confirmed' })
+      }
+    });
+
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
 export default router;

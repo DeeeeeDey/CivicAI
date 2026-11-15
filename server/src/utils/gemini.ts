@@ -122,20 +122,55 @@ export const smartCivicAssessment = (
   // Check duplicates with nearby open tickets
   let duplicateProbability = 0;
   let matchedComplaintId: string | null = null;
+  let matchedComplaint: any = null;
+  let bestDistanceMeters = 999999;
+
   if (Array.isArray(existing) && existing.length > 0) {
     for (const exp of existing) {
       if (exp.latitude && exp.longitude) {
-        const dLat = Math.abs(exp.latitude - latitude);
-        const dLng = Math.abs(exp.longitude - longitude);
-        const approxDistKm = Math.sqrt(dLat * dLat + dLng * dLng) * 111;
-        if (approxDistKm < 0.15) {
-          duplicateProbability = 0.82;
-          matchedComplaintId = exp.id || exp.publicId;
-          break;
-        } else if (approxDistKm < 0.35) {
-          duplicateProbability = 0.58;
-          matchedComplaintId = exp.id || exp.publicId;
-          break;
+        const dLat = (exp.latitude - latitude) * Math.PI / 180;
+        const dLng = (exp.longitude - longitude) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(latitude * Math.PI / 180) * Math.cos(exp.latitude * Math.PI / 180) *
+                  Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distMeters = Math.round(6371000 * c);
+
+        const expCat = (exp.category?.name || exp.category || '').toLowerCase();
+        const curCat = (category || '').toLowerCase();
+        const sameCategory = expCat && curCat && (expCat === curCat || expCat.includes(curCat) || curCat.includes(expCat));
+
+        const expDesc = (exp.description || '').toLowerCase();
+        const curDesc = (description || '').toLowerCase();
+        const words = curDesc.split(/\s+/).filter((w: string) => w.length > 3);
+        const matchCount = words.filter((w: string) => expDesc.includes(w)).length;
+        const textOverlap = words.length > 0 ? matchCount / words.length : 0;
+
+        let prob = 0;
+        if (distMeters <= 60) {
+          prob = sameCategory ? 0.94 : (textOverlap > 0.3 ? 0.88 : 0.78);
+        } else if (distMeters <= 180) {
+          prob = sameCategory ? 0.85 : (textOverlap > 0.3 ? 0.74 : 0.60);
+        } else if (distMeters <= 350) {
+          prob = sameCategory ? 0.68 : (textOverlap > 0.4 ? 0.55 : 0.40);
+        } else if (distMeters <= 600 && sameCategory) {
+          prob = 0.52;
+        }
+
+        if (prob > duplicateProbability) {
+          duplicateProbability = prob;
+          matchedComplaintId = exp.publicId || exp.id;
+          bestDistanceMeters = distMeters;
+          matchedComplaint = {
+            id: exp.id,
+            publicId: exp.publicId || exp.id,
+            description: exp.description,
+            category: exp.category?.name || exp.category || 'General',
+            imageUrl: exp.imageUrl,
+            status: exp.status,
+            distanceMeters: distMeters,
+            createdAt: exp.createdAt
+          };
         }
       }
     }
@@ -151,8 +186,9 @@ export const smartCivicAssessment = (
     department,
     duplicate_probability: duplicateProbability,
     matched_complaint_id: matchedComplaintId,
+    matched_complaint: matchedComplaint,
     signal_scores: {
-      distance: matchedComplaintId ? 0.88 : 0.1,
+      distance: matchedComplaintId ? Math.min(1, Math.max(0.1, Number((1 - bestDistanceMeters / 600).toFixed(2)))) : 0.1,
       image: 0.91,
       description: 0.95,
       time: 0.2

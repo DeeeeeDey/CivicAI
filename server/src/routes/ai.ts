@@ -21,17 +21,22 @@ router.post('/preview', authenticate, upload.single('image'), async (req, res, n
     const lngNum = parseFloat(longitude) || 88.36;
 
     const existing = await prisma.complaint.findMany({
-      take: 10,
+      take: 50,
       where: { status: { notIn: ['RESOLVED', 'VERIFIED', 'REJECTED'] } },
-      include: { category: true }
+      include: { category: true },
+      orderBy: { createdAt: 'desc' }
     });
 
     const existingMapped = existing.map(e => ({
-      id: e.publicId,
+      id: e.id,
+      publicId: e.publicId,
       description: e.description,
       latitude: e.latitude,
       longitude: e.longitude,
-      category: e.category?.name || 'General'
+      category: e.category?.name || 'General',
+      imageUrl: e.imageUrl,
+      status: e.status,
+      createdAt: e.createdAt
     }));
 
     const parsed = await analyzeComplaintWithGemini(
@@ -48,12 +53,32 @@ router.post('/preview', authenticate, upload.single('image'), async (req, res, n
   } catch (err) {
     console.error('AI preview route error:', err);
     const { description, latitude, longitude, category } = req.body;
+    let fallbackExisting: any[] = [];
+    try {
+      const active = await prisma.complaint.findMany({
+        take: 50,
+        where: { status: { notIn: ['RESOLVED', 'VERIFIED', 'REJECTED'] } },
+        include: { category: true },
+        orderBy: { createdAt: 'desc' }
+      });
+      fallbackExisting = active.map(e => ({
+        id: e.id,
+        publicId: e.publicId,
+        description: e.description,
+        latitude: e.latitude,
+        longitude: e.longitude,
+        category: e.category?.name || 'General',
+        imageUrl: e.imageUrl,
+        status: e.status,
+        createdAt: e.createdAt
+      }));
+    } catch {}
     const fallback = smartCivicAssessment(
       description,
       parseFloat(latitude) || 22.57,
       parseFloat(longitude) || 88.36,
       category,
-      []
+      fallbackExisting
     );
     res.json(fallback);
   }
