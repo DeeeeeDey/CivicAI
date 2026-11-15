@@ -87,7 +87,9 @@ export const ReportIssue = () => {
 
   const addSupportToDuplicate = async () => {
     try {
-      await api.post(/complaints//support);
+      if (aiData?.matched_complaint_id) {
+        await api.post(`/complaints/${aiData.matched_complaint_id}/support`);
+      }
       queryClient.invalidateQueries({ queryKey: ['complaints'] });
       setCurrentStep(5);
     } catch (err) {

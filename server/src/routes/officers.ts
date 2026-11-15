@@ -197,12 +197,26 @@ router.post('/:id/override', async (req: AuthRequest, res, next) => {
 
 router.post('/:id/assign', async (req: AuthRequest, res, next) => {
   try {
-    const { workerId } = req.body;
+    const { workerId, notes } = req.body;
     const complaintId = req.params.id as string;
+
+    const compBefore = await prisma.complaint.findUnique({ where: { id: complaintId } });
+    if (!compBefore) return res.status(404).json({ error: 'Complaint not found' });
+
+    let comp = compBefore;
+    if (compBefore.status !== 'ASSIGNED') {
+      comp = await transitionComplaint(complaintId, 'ASSIGNED', req.user.id, notes || `Assigned to worker`);
+    }
+
+    await prisma.assignment.updateMany({
+      where: { complaintId, completedAt: null },
+      data: { completedAt: new Date() }
+    });
+
     await prisma.assignment.create({
       data: { complaintId, officerId: req.user.id, workerId }
     });
-    const comp = await transitionComplaint(complaintId, 'ASSIGNED', req.user.id, `Assigned to worker`);
+
     res.json(comp);
   } catch (err) { next(err); }
 });

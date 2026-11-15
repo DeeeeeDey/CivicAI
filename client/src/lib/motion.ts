@@ -13,16 +13,18 @@ export const pageTransition = {
 };
 
 export const staggerContainer = {
+  initial: { opacity: 0 },
   animate: {
-    transition: { staggerChildren: 0.06 }
+    opacity: 1,
+    transition: { staggerChildren: 0.05 }
   }
 };
 
 export const scrollReveal = {
-  initial: { opacity: 0, y: 24 },
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: fadeEase } },
   whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, margin: "-40px" },
-  transition: { duration: 0.5, ease: fadeEase }
+  transition: { duration: 0.3, ease: fadeEase }
 };
 
 export const hoverCard = {

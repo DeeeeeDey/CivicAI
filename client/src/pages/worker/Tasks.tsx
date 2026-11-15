@@ -170,7 +170,7 @@ export const WorkerTasks = () => {
             const lngStr = typeof c.longitude === 'number' ? c.longitude.toFixed(4) : c.longitude || '0.0000';
 
             return (
-              <GlassCard key={task.id} interactive variants={scrollReveal} className="p-6">
+              <GlassCard key={task.id} interactive className="p-6">
                 <div className="flex flex-col gap-4">
                   {/* Card top */}
                   <div className="flex justify-between items-start gap-4">

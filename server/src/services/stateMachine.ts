@@ -4,9 +4,9 @@ import { sendStatusUpdateEmail } from './email';
 const prisma = new PrismaClient();
 
 const validTransitions: Record<ComplaintStatus, ComplaintStatus[]> = {
-  REPORTED: ['UNDER_REVIEW', 'REJECTED'],
+  REPORTED: ['UNDER_REVIEW', 'ASSIGNED', 'REJECTED'],
   UNDER_REVIEW: ['ASSIGNED', 'REJECTED'],
-  ASSIGNED: ['IN_PROGRESS'],
+  ASSIGNED: ['IN_PROGRESS', 'UNDER_REVIEW', 'ASSIGNED'],
   IN_PROGRESS: ['RESOLVED'],
   RESOLVED: ['VERIFIED', 'REOPENED'],
   REOPENED: ['ASSIGNED'],

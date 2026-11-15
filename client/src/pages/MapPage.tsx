@@ -96,6 +96,9 @@ export const MapPage = () => {
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
            {complaints.map(c => (
               <GlassCard key={c.id} interactive className="p-4 cursor-pointer hover:border-accent">
+                 {c.imageUrl && (
+                   <img src={c.imageUrl} alt={c.title} className="w-full h-28 object-cover rounded-xl mb-3 shadow-sm" />
+                 )}
                  <div className="flex justify-between items-start mb-2">
                     <Badge color={c.severity >= 4 ? 'danger' : 'warning'}>Sev {c.severity}</Badge>
                     <span className="text-[10px] font-bold text-ink-300 uppercase">{c.id}</span>
@@ -131,7 +134,10 @@ export const MapPage = () => {
             {complaints.map(c => (
                <Marker key={c.id} position={[c.lat, c.lng]} icon={createIcon(c.severity)}>
                   <Popup className="custom-popup">
-                     <div className="p-1">
+                      <div className="p-1 min-w-[200px]">
+                         {c.imageUrl && (
+                           <img src={c.imageUrl} alt={c.title} className="w-full h-28 object-cover rounded-lg mb-2 shadow-sm" />
+                         )}
                         <div className="flex gap-2 items-center mb-2">
                           <Badge color={c.severity >= 4 ? 'danger' : 'warning'}>Sev {c.severity}</Badge>
                           <span className="text-[10px] font-bold text-gray-400">{c.id}</span>

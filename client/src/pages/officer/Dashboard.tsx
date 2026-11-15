@@ -54,7 +54,7 @@ export const OfficerDashboard = () => {
   // Filter complaints for the triage queue
   const displayComplaints = (allComplaints || []).filter((c: any) => {
     if (filter === 'URGENT') {
-      return c.status === 'REPORTED' || c.status === 'UNDER_REVIEW' || (c.status === 'ASSIGNED' && c.severity >= 4);
+      return c.status === 'REPORTED' || c.status === 'UNDER_REVIEW' || (c.severity >= 4 && c.status !== 'RESOLVED' && c.status !== 'VERIFIED');
     }
     if (filter === 'HIGH_SEV') {
       return c.severity >= 4 && c.status !== 'RESOLVED' && c.status !== 'VERIFIED';
@@ -220,7 +220,6 @@ export const OfficerDashboard = () => {
               <GlassCard
                 interactive
                 key={c.id}
-                variants={scrollReveal}
                 className="p-6 flex flex-col sm:flex-row justify-between items-start gap-4"
               >
                 <div className="flex-1 flex gap-4">
