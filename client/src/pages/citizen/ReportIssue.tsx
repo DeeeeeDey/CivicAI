@@ -307,7 +307,7 @@ export const ReportIssue = () => {
     const ticker = setInterval(() => {
       const elapsed = Date.now() - startTime;
       // Smoothly advance to 95% over 4.5 seconds
-      const target = Math.min(95, Math.floor(15 + (elapsed / 4500) * 80));
+      const target = Math.min(95, Math.floor(15 + (elapsed / 7000) * 80));
       setAiProgress(target);
 
       if (target < 28) setAiStageIndex(0);
@@ -337,11 +337,11 @@ export const ReportIssue = () => {
 
       // Race with a hard client-side 6-second timeout guarantee
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('AI inference timeout threshold reached')), 6000)
+        setTimeout(() => reject(new Error('AI inference timeout threshold reached')), 12000)
       );
 
       const res: any = await Promise.race([
-        api.post('/ai/preview', fd, { timeout: 5500 }),
+        api.post('/ai/preview', fd, { timeout: 11000 }),
         timeoutPromise
       ]);
 
