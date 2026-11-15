@@ -221,6 +221,7 @@ const generateLocalCivicAssessment = (desc: string) => {
   }
 
   return {
+    is_civic_issue: true,
     category,
     confidence: 0.95,
     top_categories: topCategories,
@@ -264,7 +265,23 @@ export const ReportIssue = () => {
   const processAI = async () => {
     if (currentStep !== 3) return;
     setAiLoading(true);
+    setAiProgress(8);
+    setAiStageIndex(0);
     setCurrentStep(4);
+
+    const startTime = Date.now();
+    const ticker = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const target = Math.min(94, Math.floor(8 + (elapsed / 25000) * 86));
+      setAiProgress(target);
+
+      if (target < 22) setAiStageIndex(0);
+      else if (target < 45) setAiStageIndex(1);
+      else if (target < 68) setAiStageIndex(2);
+      else if (target < 85) setAiStageIndex(3);
+      else setAiStageIndex(4);
+    }, 350);
+
     try {
       const fd = new FormData();
       fd.append('description', desc);
@@ -275,7 +292,11 @@ export const ReportIssue = () => {
         const compressed = await compressImage(file);
         fd.append('image', compressed);
       }
-      const res = await api.post('/ai/preview', fd, { timeout: 15000 });
+      const res = await api.post('/ai/preview', fd, { timeout: 35000 });
+      setAiProgress(100);
+      setAiStageIndex(4);
+      await new Promise(r => setTimeout(r, 400));
+
       if (res.data && res.data.category && res.data.category !== 'Unknown') {
         setAiData(res.data);
       } else {
@@ -283,8 +304,11 @@ export const ReportIssue = () => {
       }
     } catch (err: any) {
       console.warn("AI service latency threshold reached, using instant smart assessment:", err);
+      setAiProgress(100);
+      await new Promise(r => setTimeout(r, 300));
       setAiData(generateLocalCivicAssessment(desc));
     } finally {
+      clearInterval(ticker);
       setAiLoading(false);
     }
   };
@@ -441,17 +465,92 @@ export const ReportIssue = () => {
           {/* STEP 4: AI REVIEW */}
           {currentStep === 4 && (
             <motion.div key="4" initial={{opacity:0, x:20}} animate={{opacity:1, x:0}} exit={{opacity:0, x:-20}} className="flex-1 flex flex-col">
-              <h2 className="text-2xl font-bold mb-6 text-ink-900 flex items-center gap-2"><Bot className="text-accent" /> AI Analysis Complete</h2>
+              <h2 className="text-2xl font-bold mb-6 text-ink-900 flex items-center gap-2">
+                <Bot className="text-accent" /> {aiLoading ? 'Gemini AI Neural Analysis in Progress' : 'AI Analysis Complete'}
+              </h2>
               
               {aiLoading ? (
-                 <div className="flex-1 flex flex-col items-center justify-center">
-                    <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <p className="text-ink-500 font-medium">Multimodal AI is analyzing your report...</p>
+                 <div className="flex-1 flex flex-col items-center justify-center py-4">
+                    <div className="w-full max-w-lg bg-surface p-6 sm:p-8 rounded-2xl border border-border shadow-xl space-y-5">
+                       {/* Header & Percentage */}
+                       <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                             <div className="w-2.5 h-2.5 rounded-full bg-accent animate-ping"></div>
+                             <span className="text-xs font-mono font-bold text-accent uppercase tracking-wider">
+                                Multimodal Analysis Active
+                             </span>
+                          </div>
+                          <span className="text-2xl font-black font-mono text-ink-900">{aiProgress}%</span>
+                       </div>
+
+                       {/* Scanning Image Thumbnail */}
+                       <div className="relative w-full h-44 rounded-xl overflow-hidden bg-ink-900/10 border border-border flex items-center justify-center">
+                          {previewUrl ? (
+                             <img src={previewUrl} className="w-full h-full object-cover filter brightness-90" />
+                          ) : (
+                             <div className="text-ink-400 text-xs">Image stream loaded...</div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-b from-accent/15 via-transparent to-accent/15 pointer-events-none"></div>
+                          {/* Animated Hologram Scanner Bar */}
+                          <motion.div
+                            className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-accent to-transparent shadow-[0_0_12px_rgba(194,104,58,0.9)]"
+                            animate={{ y: [0, 170, 0] }}
+                            transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
+                          />
+                          <div className="absolute bottom-2 left-2 px-2.5 py-1 rounded bg-ink-900/80 backdrop-blur text-[11px] font-mono text-white flex items-center gap-1.5 shadow">
+                             <Bot size={13} className="text-accent animate-spin" /> Neural Vision Processing
+                          </div>
+                       </div>
+
+                       {/* High-tech Gradient Progress Bar */}
+                       <div className="space-y-1.5">
+                          <div className="w-full h-3 bg-ink-900/10 rounded-full overflow-hidden p-0.5">
+                             <motion.div
+                                className="h-full bg-gradient-to-r from-accent via-amber-500 to-accent rounded-full transition-all duration-300"
+                                style={{ width: `${aiProgress}%` }}
+                             />
+                          </div>
+                          <div className="flex justify-between text-[11px] font-mono text-ink-500">
+                             <span>Phase {aiStageIndex + 1} of {aiStages.length}</span>
+                             <span>Engine: Google Gemini Multimodal</span>
+                          </div>
+                       </div>
+
+                       {/* Active Phase Card */}
+                       <div className="p-3.5 rounded-xl bg-ink-900/5 border border-border space-y-1">
+                          <div className="flex items-center gap-2">
+                             <div className="w-2 h-2 rounded-full bg-accent animate-pulse"></div>
+                             <h4 className="text-xs font-bold text-ink-900 uppercase tracking-wide">
+                                {aiStages[aiStageIndex]?.title}
+                             </h4>
+                          </div>
+                          <p className="text-xs text-ink-600 pl-4 leading-relaxed">
+                             {aiStages[aiStageIndex]?.desc}
+                          </p>
+                       </div>
+
+                       {/* 5-Phase Mini Step Pips */}
+                       <div className="grid grid-cols-5 gap-1.5">
+                          {aiStages.map((st, i) => (
+                             <div
+                                key={i}
+                                className={`h-1.5 rounded-full transition-all duration-300 ${
+                                   i < aiStageIndex ? 'bg-success' : i === aiStageIndex ? 'bg-accent animate-pulse' : 'bg-ink-200'
+                                }`}
+                                title={st.title}
+                             />
+                          ))}
+                       </div>
+
+                       <p className="text-[11px] text-center text-ink-400 italic">
+                          Multimodal models inspect both pixel data and GIS municipal coordinates. Please allow up to 25 seconds for deep inference.
+                       </p>
+                    </div>
                  </div>
               ) : aiData ? (
                  <div className="space-y-6">
-                    {/* Non-civic or low severity alert banner */}
-                    {(!aiData.is_civic_issue || aiData.category === 'Non-Civic / Invalid' || aiData.severity === 0) && (
+                    {/* Non-civic or low severity alert banner - ONLY shown when is_civic_issue is false OR category is Non-Civic / Invalid */}
+                    {(aiData.is_civic_issue === false || aiData.category === 'Non-Civic / Invalid') && (
                        <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-3">
                           <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={20} />
                           <div>
@@ -505,31 +604,60 @@ export const ReportIssue = () => {
                              <span className="text-[11px] font-normal text-ink-400">Click to change</span>
                           </div>
                           <div className="flex flex-wrap gap-1.5">
-                             {['Pothole', 'Water Leakage', 'Garbage Accumulation', 'Broken Streetlight', 'Drainage Problem', 'Fallen Tree', 'Damaged Footpath', 'General Municipal Issue'].map(cat => (
-                                <button
-                                   key={cat}
-                                   type="button"
-                                   onClick={() => {
-                                      setAiData((prev: any) => ({
-                                         ...prev,
-                                         category: cat,
-                                         severity: prev?.severity === 0 ? 3 : (prev?.severity || 3),
-                                         is_civic_issue: true,
-                                         top_categories: [
-                                            { category: cat, confidence: 0.98 },
-                                            ...(prev?.top_categories?.filter((c: any) => c.category !== cat) || [])
-                                         ]
-                                      }));
-                                   }}
-                                   className={`px-2.5 py-1 text-xs rounded-lg border transition-all ${
-                                      aiData.category === cat
-                                         ? 'bg-accent text-white border-accent font-medium shadow-sm'
-                                         : 'bg-surface hover:bg-ink-100 text-ink-700 border-border'
-                                   }`}
-                                >
-                                   {cat}
-                                </button>
-                             ))}
+                             {[
+                               'Pothole',
+                               'Water Leakage',
+                               'Garbage Accumulation',
+                               'Broken Streetlight',
+                               'Drainage Problem',
+                               'Fallen Tree',
+                               'Damaged Footpath',
+                               'General Municipal Issue',
+                               'Non-Civic / Invalid'
+                             ].map(cat => {
+                                const isSelected = aiData.category === cat;
+                                return (
+                                   <button
+                                      key={cat}
+                                      type="button"
+                                      onClick={() => {
+                                         const isNonCivic = cat === 'Non-Civic / Invalid';
+                                         const departmentMap: Record<string, string> = {
+                                           'Pothole': 'Public Works',
+                                           'Water Leakage': 'Water Supply & Sewerage',
+                                           'Garbage Accumulation': 'Solid Waste Management',
+                                           'Broken Streetlight': 'Electricity & Public Lighting',
+                                           'Drainage Problem': 'Drainage & Sewerage',
+                                           'Fallen Tree': 'Parks & Horticulture',
+                                           'Damaged Footpath': 'Public Works',
+                                           'General Municipal Issue': 'Municipal Triage Desk',
+                                           'Non-Civic / Invalid': 'None'
+                                         };
+                                         setAiData((prev: any) => ({
+                                            ...prev,
+                                            category: cat,
+                                            department: departmentMap[cat] || 'Municipal Triage Desk',
+                                            severity: isNonCivic ? 0 : (prev?.severity === 0 ? 3 : (prev?.severity || 3)),
+                                            is_civic_issue: !isNonCivic,
+                                            top_categories: [
+                                               { category: cat, confidence: 0.98 }
+                                            ],
+                                            explanation: isNonCivic
+                                              ? [{ factor: 'Non-Civic Content', contribution: '0', note: 'Marked as non-civic or personal media by user.' }]
+                                              : [{ factor: 'Citizen Correction', contribution: '+1', note: `User manually confirmed category as: ${cat}` }]
+                                         }));
+                                      }}
+                                      className={`px-3 py-1 text-xs rounded-lg border transition-all flex items-center gap-1.5 ${
+                                         isSelected
+                                            ? 'bg-accent text-white border-accent font-bold shadow-sm ring-2 ring-accent/30'
+                                            : 'bg-surface hover:bg-ink-100 text-ink-700 border-border'
+                                      }`}
+                                   >
+                                      {isSelected && <CheckCircle2 size={12} className="text-white" />}
+                                      {cat}
+                                   </button>
+                                );
+                             })}
                           </div>
                        </div>
                     </div>

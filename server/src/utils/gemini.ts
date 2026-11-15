@@ -299,13 +299,13 @@ export const analyzeComplaintWithGemini = async (
     }
 
     // Try available model identifiers with 10s timeout
-    const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.5-flash', 'gemini-2.5-pro'];
+    const candidateModels = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-pro-latest'];
 
     for (const m of candidateModels) {
       try {
         const model = genAI.getGenerativeModel({ model: m });
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('AI latency threshold exceeded')), 10000)
+          setTimeout(() => reject(new Error('AI latency threshold exceeded')), 30000)
         );
 
         const callPromise = (async () => {
