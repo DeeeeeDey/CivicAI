@@ -380,14 +380,18 @@ export const sendDispatchedEmail = async ({
 
   if (sentVia === 'none' && resend) {
     try {
-      await resend.emails.send({
+      const response = await resend.emails.send({
         from: process.env.RESEND_FROM || 'CivicAI Updates <onboarding@resend.dev>',
         to: cleanEmail,
         subject: meta.subject,
         html
       });
-      sentVia = 'resend';
-      console.log(`[Email Service - Resend] Sent email to ${cleanEmail} for #${publicId}`);
+      if (response && response.error) {
+        console.warn(`[Email Service - Resend Notice] Failed delivering to ${cleanEmail}: ${response.error.message || JSON.stringify(response.error)}`);
+      } else if (response && response.data) {
+        sentVia = 'resend';
+        console.log(`[Email Service - Resend] Sent email to ${cleanEmail} for #${publicId} (ID: ${response.data.id})`);
+      }
     } catch (resendErr: any) {
       console.warn(`[Email Service - Resend Notice] Failed delivering to ${cleanEmail}: ${resendErr?.message || resendErr}.`);
     }

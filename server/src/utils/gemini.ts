@@ -235,7 +235,11 @@ export const analyzeComplaintWithGemini = async (
   file: any,
   existing: any[]
 ) => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  let apiKey = (process.env.GEMINI_API_KEY || '').trim();
+  if ((apiKey.startsWith('"') && apiKey.endsWith('"')) || (apiKey.startsWith("'") && apiKey.endsWith("'"))) {
+    apiKey = apiKey.slice(1, -1).trim();
+  }
+
   if (!apiKey || apiKey === 'MISSING_KEY') {
     return smartCivicAssessment(description, latitude, longitude, category, existing);
   }
@@ -300,8 +304,8 @@ export const analyzeComplaintWithGemini = async (
     }
 
     // Try fast multimodal models with responseMimeType: 'application/json'
-    // Prioritize gemini-3-flash-preview (not subject to 503 high demand spikes)
-    const candidateModels = ['gemini-3-flash-preview', 'gemini-flash-lite-latest'];
+    // gemini-3.5-flash-lite is ultrafast (~1.3s), gemini-3-flash-preview (~2.9s)
+    const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite'];
 
     for (const m of candidateModels) {
       try {
@@ -310,7 +314,7 @@ export const analyzeComplaintWithGemini = async (
           generationConfig: { responseMimeType: 'application/json' }
         });
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('AI latency threshold exceeded')), 9000)
+          setTimeout(() => reject(new Error('AI latency threshold exceeded')), 12000)
         );
 
         const callPromise = (async () => {
@@ -324,7 +328,17 @@ export const analyzeComplaintWithGemini = async (
 
         const parsed: any = await Promise.race([callPromise, timeoutPromise]);
         if (parsed) {
-          if (parsed.is_civic_issue === false || parsed.category?.toLowerCase().includes('non-civic') || parsed.category?.toLowerCase().includes('portrait') || parsed.category?.toLowerCase().includes('person')) {
+          const catLower = String(parsed.category || '').toLowerCase();
+          if (
+            parsed.is_civic_issue === false ||
+            catLower.includes('non-civic') ||
+            catLower.includes('portrait') ||
+            catLower.includes('person') ||
+            catLower.includes('invalid') ||
+            catLower.includes('human') ||
+            catLower.includes('indoor') ||
+            catLower.includes('personal')
+          ) {
             parsed.is_civic_issue = false;
             parsed.category = 'Non-Civic / Invalid';
             parsed.department = 'None';
@@ -332,6 +346,9 @@ export const analyzeComplaintWithGemini = async (
             parsed.signal_driver = 'non-civic';
             parsed.top_categories = [
               { category: 'Non-Civic / Invalid', confidence: 0.99 }
+            ];
+            parsed.explanation = [
+              { factor: 'Personal / Non-Civic Content', contribution: '0', note: 'AI detected a personal portrait or non-civic photo rather than municipal infrastructure damage.' }
             ];
           }
           return parsed;
