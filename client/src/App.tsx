@@ -29,6 +29,7 @@ import { AdminSettingsPage } from './pages/admin/SettingsPage';
 import { CitizenDashboard } from './pages/citizen/Dashboard';
 import { MyComplaints } from './pages/citizen/MyComplaints';
 import { ReportIssue } from './pages/citizen/ReportIssue';
+import { NotificationsPage } from './pages/citizen/NotificationsPage';
 
 import { OfficerDashboard } from './pages/officer/Dashboard';
 import { OfficerQueuePage } from './pages/officer/QueuePage';
@@ -100,7 +101,7 @@ function App() {
                      <Route path="/citizen/report" element={<ReportIssue />} />
                      <Route path="/citizen/complaints" element={<MyComplaints />} />
                      <Route path="/citizen/map" element={<MapPage />} />
-                     <Route path="/citizen/notifications" element={<div className="p-12 text-center text-ink-900">Notifications</div>} />
+                     <Route path="/citizen/notifications" element={<NotificationsPage />} />
                      <Route path="/citizen/settings" element={<div className="p-12 text-center text-ink-900">Settings</div>} />
                    </Route>
                    

@@ -30,3 +30,14 @@ export const useAdminUsers = () => {
     }
   });
 };
+
+export const useCitizenNotifications = () => {
+  return useQuery({
+    queryKey: ['citizenNotifications'],
+    queryFn: async () => {
+      const { data } = await api.get('/citizens/notifications');
+      return data;
+    },
+    refetchInterval: 8000
+  });
+};

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { authenticate } from '../middlewares';
+import { sendStatusUpdateEmail } from '../services/email';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -283,6 +284,19 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
         notes: 'Citizen reported the issue via app.'
       }
     });
+
+    // 8. Send status update email & create in-app notification
+    if (req.user?.email) {
+      sendStatusUpdateEmail(
+        req.user.email,
+        complaint.publicId,
+        'REPORTED',
+        'Issue registered successfully and queued for municipal review.',
+        userId
+      ).catch(err => {
+        console.error('Non-fatal error: Failed to trigger initial report email:', err);
+      });
+    }
 
     res.status(201).json(complaint);
   } catch(err) {

@@ -46,7 +46,8 @@ export const DashboardLayout = () => {
           { name: 'Overview', path: '/citizen/dashboard', icon: Home },
           { name: 'Report Issue', path: '/citizen/report', icon: PlusCircle },
           { name: 'My Complaints', path: '/citizen/complaints', icon: FileText },
-          { name: 'Community Map', path: '/citizen/map', icon: MapIcon }
+          { name: 'Community Map', path: '/citizen/map', icon: MapIcon },
+          { name: 'Notifications', path: '/citizen/notifications', icon: Bell }
         ]
       }
     ],
@@ -173,6 +174,15 @@ export const DashboardLayout = () => {
 
           <div className="flex items-center gap-3">
             <LocationPill />
+            {user.role === 'CITIZEN' && (
+              <Link
+                to="/citizen/notifications"
+                className="relative p-2 text-ink-500 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors"
+                title="Notifications & Dispatches"
+              >
+                <Bell size={19} />
+              </Link>
+            )}
             <button onClick={toggleTheme} className="p-2 text-ink-500 hover:bg-black/5 rounded-full">
               {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
             </button>

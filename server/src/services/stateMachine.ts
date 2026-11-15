@@ -66,14 +66,14 @@ export const transitionComplaint = async (
         userId: comp.citizenId,
         title: 'Complaint Update',
         message: `Your complaint ${comp.publicId} is now ${targetStatus}.`,
-        link: `/complaints/${comp.publicId}`
+        link: `/track/${comp.publicId}`
       }
     });
     
     // Notify citizen via Email
     if (complaint.citizen && complaint.citizen.email) {
       // Fire and forget (don't block the transaction)
-      sendStatusUpdateEmail(complaint.citizen.email, comp.publicId, targetStatus, notes).catch(err => {
+      sendStatusUpdateEmail(complaint.citizen.email, comp.publicId, targetStatus, notes, comp.citizenId).catch(err => {
          console.error("Non-fatal error: Failed to send email trigger", err);
       });
     }
