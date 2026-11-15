@@ -8,12 +8,12 @@ const resendApiKey = process.env.RESEND_API_KEY;
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
 // Configure SMTP if provided in environment
-const createSmtpTransporter = () => {
+const getSmtpTransporter = () => {
   if (process.env.SMTP_HOST && process.env.SMTP_USER) {
     return nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587', 10),
-      secure: process.env.SMTP_SECURE === 'true',
+      secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
@@ -33,8 +33,6 @@ const createSmtpTransporter = () => {
 
   return null;
 };
-
-const smtpTransporter = createSmtpTransporter();
 
 let etherealTransporter: any = null;
 const getEtherealTransporter = async () => {
@@ -210,6 +208,11 @@ export const sendStatusUpdateEmail = async (
   notes?: string,
   userId?: string
 ) => {
+  const cleanEmail = (toEmail || '').trim().toLowerCase();
+  if (!cleanEmail || !cleanEmail.includes('@')) {
+    console.warn(`[Email Service] Skipped sending status email: invalid recipient email "${toEmail}" for #${publicId}`);
+    return;
+  }
   const meta = getStatusEmailMeta(publicId, newStatus);
   const frontendUrl = process.env.FRONTEND_URL || 'https://civic-ai-2v9u.vercel.app';
   const cleanFrontendUrl = frontendUrl.replace(/\/+$/, '');
@@ -342,19 +345,21 @@ export const sendStatusUpdateEmail = async (
     </html>
   `;
 
-  // 3. Dispatch via SMTP or Resend
+  // 3. Dispatch via SMTP, Resend, or Ethereal test mailbox
   let sentVia = 'none';
+  let previewUrl: string | false = false;
 
-  if (smtpTransporter) {
+  const activeSmtp = getSmtpTransporter();
+  if (activeSmtp) {
     try {
-      await smtpTransporter.sendMail({
+      await activeSmtp.sendMail({
         from: process.env.SMTP_FROM || `"CivicAI Updates" <${process.env.SMTP_USER || process.env.GMAIL_USER}>`,
-        to: toEmail,
+        to: cleanEmail,
         subject: meta.subject,
         html
       });
       sentVia = 'smtp';
-      console.log(`[Email Service - SMTP] Sent status email to ${toEmail} for #${publicId} [${newStatus}]`);
+      console.log(`[Email Service - SMTP] Sent status email to ${cleanEmail} for #${publicId} [${newStatus}]`);
     } catch (smtpErr) {
       console.error('[Email Service - SMTP Error]:', smtpErr);
     }
@@ -364,31 +369,30 @@ export const sendStatusUpdateEmail = async (
     try {
       await resend.emails.send({
         from: process.env.RESEND_FROM || 'CivicAI Updates <onboarding@resend.dev>',
-        to: toEmail,
+        to: cleanEmail,
         subject: meta.subject,
         html
       });
       sentVia = 'resend';
-      console.log(`[Email Service - Resend] Sent status email to ${toEmail} for #${publicId} [${newStatus}]`);
+      console.log(`[Email Service - Resend] Sent status email to ${cleanEmail} for #${publicId} [${newStatus}]`);
     } catch (resendErr: any) {
-      console.error('[Email Service - Resend Error]:', resendErr?.message || resendErr);
+      console.warn(`[Email Service - Resend Notice] Failed delivering to ${cleanEmail}: ${resendErr?.message || resendErr}. (Note: Resend free sandbox only sends to the account owner email. For external users, configure a custom domain on Resend or set GMAIL_USER & GMAIL_APP_PASSWORD).`);
     }
   }
 
-  let previewUrl: string | false = false;
   if (sentVia === 'none') {
     try {
       const ethereal = await getEtherealTransporter();
       if (ethereal) {
         const info = await ethereal.sendMail({
           from: '"CivicAI Operations" <system@civicai.gov>',
-          to: toEmail,
+          to: cleanEmail,
           subject: meta.subject,
           html
         });
         sentVia = 'ethereal';
         previewUrl = nodemailer.getTestMessageUrl(info);
-        console.log(`[Email Service - Ethereal] Delivered status email to ${toEmail} for #${publicId} [${newStatus}]`);
+        console.log(`[Email Service - Ethereal Test Mailbox] Delivered status email to ${cleanEmail} for #${publicId} [${newStatus}]`);
         if (previewUrl) {
           console.log(`[Email Service - Web Preview]: ${previewUrl}`);
         }
@@ -398,7 +402,35 @@ export const sendStatusUpdateEmail = async (
     }
   }
 
-  // 4. Log in Audit Log so administrators can inspect all sent communications
+  // 4. Update or create in-app notification with preview URL if available
+  if (userId) {
+    try {
+      const messageBody = notes ? `${meta.message} (Note: ${notes})` : meta.message;
+      const fullMessage = previewUrl ? `${messageBody} [Test Email Web Preview: ${previewUrl}]` : messageBody;
+
+      const recent = await prisma.notification.findFirst({
+        where: {
+          userId,
+          link: `/track/${publicId}`,
+          createdAt: { gte: new Date(Date.now() - 10000) }
+        }
+      });
+      if (!recent) {
+        await prisma.notification.create({
+          data: {
+            userId,
+            title: meta.headerText,
+            message: fullMessage,
+            link: `/track/${publicId}`
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to record in-app notification:', e);
+    }
+  }
+
+  // 5. Log in Audit Log
   try {
     const complaint = await prisma.complaint.findUnique({ where: { publicId }, select: { id: true } });
     if (complaint) {
@@ -407,7 +439,7 @@ export const sendStatusUpdateEmail = async (
           complaintId: complaint.id,
           action: 'NOTIFICATION_SENT',
           details: JSON.stringify({
-            recipient: toEmail,
+            recipient: cleanEmail,
             status: newStatus,
             transport: sentVia,
             subject: meta.subject,
@@ -420,5 +452,5 @@ export const sendStatusUpdateEmail = async (
     // Non-fatal
   }
 
-  console.log(`[EMAIL DISPATCH LOG] To: ${toEmail} | Ticket: #${publicId} | Status: ${newStatus} | Transport: ${sentVia}${previewUrl ? ` | Preview: ${previewUrl}` : ''}`);
+  console.log(`[EMAIL DISPATCH LOG] To: ${cleanEmail} | Ticket: #${publicId} | Status: ${newStatus} | Transport: ${sentVia}${previewUrl ? ` | Preview: ${previewUrl}` : ''}`);
 };

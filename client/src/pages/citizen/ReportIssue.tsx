@@ -87,19 +87,54 @@ const compressImage = async (file: File, maxDimension = 1600, quality = 0.8): Pr
 
 const generateLocalCivicAssessment = (desc: string) => {
   const text = (desc || '').toLowerCase();
-  let category = 'Pothole';
-  let department = 'Public Works';
-  let severity = 3;
-  let explanation = [
-    { factor: 'Road Surface Defect', contribution: '+2', note: 'Visible degradation on traffic corridor' },
-    { factor: 'Public Safety Risk', contribution: '+1', note: 'Hazard to commuters and two-wheelers' }
-  ];
-  let topCategories = [
-    { category: 'Pothole', confidence: 0.96 },
-    { category: 'Damaged Road', confidence: 0.84 }
+
+  // 1. Check for non-civic / entertainment / personal / domestic terms
+  const nonCivicKeywords = [
+    'stage', 'performance', 'concert', 'theater', 'theatre', 'dance', 'dancer',
+    'actor', 'actress', 'acting', 'singer', 'music', 'musical', 'band', 'drama',
+    'show', 'auditorium', 'party', 'event', 'wedding', 'food', 'dish', 'dining',
+    'restaurant', 'meal', 'selfie', 'portrait', 'pet', 'cat', 'dog', 'animal',
+    'furniture', 'bed', 'sofa', 'laptop', 'computer', 'screen', 'phone', 'interior',
+    'indoor', 'drawing', 'painting', 'sketch', 'art', 'clothing', 'fashion', 'model',
+    'game', 'playstation', 'anime', 'meme', 'cinema', 'movie', 'hall', 'ceremony'
   ];
 
-  if (text.includes('pothole') || text.includes('road') || text.includes('crater') || text.includes('bump')) {
+  const isNonCivic = nonCivicKeywords.some(keyword => {
+    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+    return regex.test(text);
+  });
+
+  if (isNonCivic) {
+    return {
+      category: 'Non-Civic / Invalid',
+      department: 'None',
+      severity: 0,
+      is_civic_issue: false,
+      explanation: [
+        { factor: 'Non-Civic Content', contribution: '0', note: 'The submitted image/description depicts entertainment, indoor, or personal content rather than a public civic hazard.' }
+      ],
+      top_categories: [
+        { category: 'Non-Civic / Invalid', confidence: 0.99 },
+        { category: 'Entertainment / Indoor', confidence: 0.85 }
+      ],
+      signal_driver: 'non-civic',
+      duplicate_probability: 0,
+      matched_complaint_id: null,
+      signal_scores: { distance: 0.1, image: 0.1, description: 0.1, time: 0.1 }
+    };
+  }
+
+  let category = 'General Municipal Issue';
+  let department = 'Municipal Triage Desk';
+  let severity = 2;
+  let explanation = [
+    { factor: 'General Assessment', contribution: '+1', note: 'Pending visual inspection by municipal triage officer' }
+  ];
+  let topCategories = [
+    { category: 'General Municipal Issue', confidence: 0.70 }
+  ];
+
+  if (text.includes('pothole') || text.includes('road') || text.includes('crater') || text.includes('bump') || text.includes('asphalt')) {
     category = 'Pothole';
     department = 'Public Works';
     severity = text.includes('deep') || text.includes('danger') || text.includes('huge') ? 4 : 3;
@@ -107,7 +142,11 @@ const generateLocalCivicAssessment = (desc: string) => {
       { factor: 'Traffic Hazard', contribution: '+2', note: 'Direct risk of vehicle damage and accidents' },
       { factor: 'Pavement Failure', contribution: '+1', note: 'Asphalt cavity requiring surface repair' }
     ];
-  } else if (text.includes('garbage') || text.includes('trash') || text.includes('waste') || text.includes('dump') || text.includes('litter')) {
+    topCategories = [
+      { category: 'Pothole', confidence: 0.96 },
+      { category: 'Damaged Road', confidence: 0.84 }
+    ];
+  } else if (text.includes('garbage') || text.includes('trash') || text.includes('waste') || text.includes('dump') || text.includes('litter') || text.includes('bin') || text.includes('debris')) {
     category = 'Garbage Accumulation';
     department = 'Solid Waste Management';
     severity = text.includes('overflow') || text.includes('huge') ? 4 : 3;
@@ -119,7 +158,7 @@ const generateLocalCivicAssessment = (desc: string) => {
       { category: 'Garbage Accumulation', confidence: 0.95 },
       { category: 'Illegal Dumping', confidence: 0.84 }
     ];
-  } else if (text.includes('leak') || text.includes('pipe') || text.includes('water') || text.includes('burst')) {
+  } else if (text.includes('leak') || text.includes('pipe') || text.includes('water') || text.includes('burst') || text.includes('tap')) {
     category = 'Water Leakage';
     department = 'Water Supply & Sewerage';
     severity = 4;
@@ -131,7 +170,7 @@ const generateLocalCivicAssessment = (desc: string) => {
       { category: 'Water Leakage', confidence: 0.96 },
       { category: 'Drainage Problem', confidence: 0.75 }
     ];
-  } else if (text.includes('light') || text.includes('dark') || text.includes('lamp') || text.includes('bulb')) {
+  } else if (text.includes('light') || text.includes('dark') || text.includes('lamp') || text.includes('bulb') || text.includes('blackout')) {
     category = 'Broken Streetlight';
     department = 'Electricity & Public Lighting';
     severity = 3;
@@ -143,7 +182,7 @@ const generateLocalCivicAssessment = (desc: string) => {
       { category: 'Broken Streetlight', confidence: 0.94 },
       { category: 'Damaged Public Infrastructure', confidence: 0.8 }
     ];
-  } else if (text.includes('drain') || text.includes('sewage') || text.includes('clog') || text.includes('gutter') || text.includes('flood')) {
+  } else if (text.includes('drain') || text.includes('sewage') || text.includes('clog') || text.includes('gutter') || text.includes('flood') || text.includes('manhole')) {
     category = 'Drainage Problem';
     department = 'Drainage & Sewerage';
     severity = 4;
@@ -155,7 +194,7 @@ const generateLocalCivicAssessment = (desc: string) => {
       { category: 'Drainage Problem', confidence: 0.95 },
       { category: 'Water Leakage', confidence: 0.72 }
     ];
-  } else if (text.includes('tree') || text.includes('branch') || text.includes('fallen')) {
+  } else if (text.includes('tree') || text.includes('branch') || text.includes('fallen') || text.includes('trunk')) {
     category = 'Fallen Tree';
     department = 'Parks & Horticulture';
     severity = 4;
@@ -167,7 +206,7 @@ const generateLocalCivicAssessment = (desc: string) => {
       { category: 'Fallen Tree', confidence: 0.97 },
       { category: 'Damaged Public Infrastructure', confidence: 0.82 }
     ];
-  } else if (text.includes('footpath') || text.includes('sidewalk') || text.includes('pavement')) {
+  } else if (text.includes('footpath') || text.includes('sidewalk') || text.includes('pavement') || text.includes('tile')) {
     category = 'Damaged Footpath';
     department = 'Public Works';
     severity = 3;
@@ -236,7 +275,7 @@ export const ReportIssue = () => {
         const compressed = await compressImage(file);
         fd.append('image', compressed);
       }
-      const res = await api.post('/ai/preview', fd, { timeout: 6000 });
+      const res = await api.post('/ai/preview', fd, { timeout: 15000 });
       if (res.data && res.data.category && res.data.category !== 'Unknown') {
         setAiData(res.data);
       } else {
@@ -411,6 +450,19 @@ export const ReportIssue = () => {
                  </div>
               ) : aiData ? (
                  <div className="space-y-6">
+                    {/* Non-civic or low severity alert banner */}
+                    {(!aiData.is_civic_issue || aiData.category === 'Non-Civic / Invalid' || aiData.severity === 0) && (
+                       <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-3">
+                          <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={20} />
+                          <div>
+                             <h4 className="font-bold text-amber-600 dark:text-amber-400 text-sm">Non-Civic / Ambiguous Content Flagged</h4>
+                             <p className="text-xs text-ink-600 mt-1">
+                                Our AI detected that this image may contain non-civic content (such as entertainment, an indoor scene, or a personal photo). If this is actually a legitimate municipal issue, please select the matching category below to correct it.
+                             </p>
+                          </div>
+                       </div>
+                    )}
+
                     {/* 01 Classification */}
                     <div className="p-4 bg-surface rounded-xl border border-border shadow-sm">
                        <div className="flex items-center gap-2 mb-4">
@@ -443,6 +495,41 @@ export const ReportIssue = () => {
                                    Signal: {aiData.signal_driver}
                                 </Badge>
                              </div>
+                          </div>
+                       </div>
+
+                       {/* Interactive Category Override Chips */}
+                       <div className="mt-4 pt-3 border-t border-border/50">
+                          <div className="text-xs font-semibold text-ink-600 mb-2 flex items-center justify-between">
+                             <span>Category Correction (Optional):</span>
+                             <span className="text-[11px] font-normal text-ink-400">Click to change</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                             {['Pothole', 'Water Leakage', 'Garbage Accumulation', 'Broken Streetlight', 'Drainage Problem', 'Fallen Tree', 'Damaged Footpath', 'General Municipal Issue'].map(cat => (
+                                <button
+                                   key={cat}
+                                   type="button"
+                                   onClick={() => {
+                                      setAiData((prev: any) => ({
+                                         ...prev,
+                                         category: cat,
+                                         severity: prev?.severity === 0 ? 3 : (prev?.severity || 3),
+                                         is_civic_issue: true,
+                                         top_categories: [
+                                            { category: cat, confidence: 0.98 },
+                                            ...(prev?.top_categories?.filter((c: any) => c.category !== cat) || [])
+                                         ]
+                                      }));
+                                   }}
+                                   className={`px-2.5 py-1 text-xs rounded-lg border transition-all ${
+                                      aiData.category === cat
+                                         ? 'bg-accent text-white border-accent font-medium shadow-sm'
+                                         : 'bg-surface hover:bg-ink-100 text-ink-700 border-border'
+                                   }`}
+                                >
+                                   {cat}
+                                </button>
+                             ))}
                           </div>
                        </div>
                     </div>

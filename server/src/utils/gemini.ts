@@ -18,44 +18,74 @@ export const smartCivicAssessment = (
 ) => {
   const text = (description + ' ' + (userCategory || '')).toLowerCase();
 
-  let category = 'Pothole';
-  let department = 'Public Works';
-  let severity = 3;
-  let explanation = [
-    { factor: 'Road Surface Defect', contribution: '+2', note: 'Visible degradation on traffic corridor' },
-    { factor: 'Public Safety Risk', contribution: '+1', note: 'Hazard to commuters and two-wheelers' }
-  ];
-  let topCategories = [
-    { category: 'Pothole', confidence: 0.95 },
-    { category: 'Damaged Road', confidence: 0.83 },
-    { category: 'Damaged Footpath', confidence: 0.65 }
+  // 1. Check for non-civic / entertainment / personal / domestic terms
+  const nonCivicKeywords = [
+    'stage', 'performance', 'concert', 'theater', 'theatre', 'dance', 'dancer',
+    'actor', 'actress', 'acting', 'singer', 'music', 'musical', 'band', 'drama',
+    'show', 'auditorium', 'party', 'event', 'wedding', 'food', 'dish', 'dining',
+    'restaurant', 'meal', 'selfie', 'portrait', 'pet', 'cat', 'dog', 'animal',
+    'furniture', 'bed', 'sofa', 'laptop', 'computer', 'screen', 'phone', 'interior',
+    'indoor', 'drawing', 'painting', 'sketch', 'art', 'clothing', 'fashion', 'model',
+    'game', 'playstation', 'anime', 'meme', 'cinema', 'movie', 'hall', 'ceremony'
   ];
 
-  if (text.includes('pothole') || text.includes('crater') || text.includes('ditch') || text.includes('asphalt') || text.includes('bump')) {
+  const isNonCivic = nonCivicKeywords.some(keyword => {
+    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+    return regex.test(text);
+  });
+
+  let category = 'General Municipal Issue';
+  let department = 'Municipal Triage Desk';
+  let severity = 2;
+  let isCivicIssue = true;
+  let explanation = [
+    { factor: 'General Assessment', contribution: '+1', note: 'Pending visual inspection by municipal triage officer' }
+  ];
+  let topCategories = [
+    { category: 'General Municipal Issue', confidence: 0.70 }
+  ];
+
+  if (isNonCivic) {
+    category = 'Non-Civic / Invalid';
+    department = 'None';
+    severity = 0;
+    isCivicIssue = false;
+    explanation = [
+      {
+        factor: 'Non-Civic Content',
+        contribution: '0',
+        note: 'Image or description depicts entertainment, personal, indoor, or non-infrastructure content.'
+      }
+    ];
+    topCategories = [
+      { category: 'Non-Civic / Invalid', confidence: 0.99 },
+      { category: 'Entertainment / Indoor', confidence: 0.85 }
+    ];
+  } else if (text.includes('pothole') || text.includes('crater') || text.includes('ditch') || text.includes('asphalt') || text.includes('broken road') || text.includes('road crack') || text.includes('tarmac')) {
     category = 'Pothole';
     department = 'Public Works';
     severity = text.includes('deep') || text.includes('danger') || text.includes('huge') || text.includes('main road') ? 4 : 3;
     explanation = [
-      { factor: 'Traffic Hazard', contribution: '+2', note: 'Direct risk of vehicle damage and accidents' },
+      { factor: 'Traffic Hazard', contribution: '+2', note: 'Direct risk of vehicle damage and two-wheeler accidents' },
       { factor: 'Pavement Structural Failure', contribution: '+1', note: 'Asphalt cavity requiring immediate cold-mix patch' }
     ];
     topCategories = [
       { category: 'Pothole', confidence: 0.96 },
       { category: 'Damaged Road', confidence: 0.85 }
     ];
-  } else if (text.includes('garbage') || text.includes('trash') || text.includes('waste') || text.includes('dump') || text.includes('litter') || text.includes('stink') || text.includes('smell') || text.includes('bin')) {
+  } else if (text.includes('garbage') || text.includes('trash') || text.includes('waste') || text.includes('dump') || text.includes('litter') || text.includes('stink') || text.includes('smell') || text.includes('bin') || text.includes('debris')) {
     category = 'Garbage Accumulation';
     department = 'Solid Waste Management';
     severity = text.includes('overflow') || text.includes('health') || text.includes('huge') ? 4 : 3;
     explanation = [
-      { factor: 'Sanitation & Health', contribution: '+2', note: 'Bio-hazard attracting pests and stray animals' },
+      { factor: 'Sanitation & Health', contribution: '+2', note: 'Bio-hazard attracting pests, vectors, and stray animals' },
       { factor: 'Pedestrian Obstruction', contribution: '+1', note: 'Waste pile spilling into public walkway' }
     ];
     topCategories = [
       { category: 'Garbage Accumulation', confidence: 0.95 },
       { category: 'Illegal Dumping', confidence: 0.84 }
     ];
-  } else if (text.includes('leak') || text.includes('pipe') || text.includes('burst') || text.includes('water supply') || text.includes('tap') || text.includes('pipeline')) {
+  } else if (text.includes('leak') || text.includes('pipe') || text.includes('burst') || text.includes('water supply') || text.includes('tap') || text.includes('pipeline') || text.includes('potable')) {
     category = 'Water Leakage';
     department = 'Water Supply & Sewerage';
     severity = text.includes('burst') || text.includes('flooding') || text.includes('gushing') ? 5 : 4;
@@ -67,7 +97,7 @@ export const smartCivicAssessment = (
       { category: 'Water Leakage', confidence: 0.97 },
       { category: 'Drainage Problem', confidence: 0.72 }
     ];
-  } else if (text.includes('light') || text.includes('dark') || text.includes('lamp') || text.includes('blackout') || text.includes('bulb') || text.includes('pole')) {
+  } else if (text.includes('streetlight') || text.includes('street light') || text.includes('lamp') || text.includes('blackout') || text.includes('bulb') || text.includes('dark street') || text.includes('luminaire')) {
     category = 'Broken Streetlight';
     department = 'Electricity & Public Lighting';
     severity = text.includes('dangerous') || text.includes('crime') || text.includes('junction') ? 4 : 3;
@@ -79,7 +109,7 @@ export const smartCivicAssessment = (
       { category: 'Broken Streetlight', confidence: 0.95 },
       { category: 'Damaged Public Infrastructure', confidence: 0.78 }
     ];
-  } else if (text.includes('drain') || text.includes('sewage') || text.includes('manhole') || text.includes('clog') || text.includes('gutter') || text.includes('stagnant')) {
+  } else if (text.includes('drain') || text.includes('sewage') || text.includes('manhole') || text.includes('clog') || text.includes('gutter') || text.includes('stagnant') || text.includes('waterlogging')) {
     category = 'Drainage Problem';
     department = 'Drainage & Sewerage';
     severity = text.includes('overflow') || text.includes('flood') || text.includes('open') ? 4 : 3;
@@ -91,7 +121,7 @@ export const smartCivicAssessment = (
       { category: 'Drainage Problem', confidence: 0.94 },
       { category: 'Water Leakage', confidence: 0.73 }
     ];
-  } else if (text.includes('tree') || text.includes('branch') || text.includes('fallen') || text.includes('storm') || text.includes('trunk')) {
+  } else if (text.includes('tree') || text.includes('branch') || text.includes('fallen tree') || text.includes('trunk') || text.includes('uprooted')) {
     category = 'Fallen Tree';
     department = 'Parks & Horticulture';
     severity = text.includes('wire') || text.includes('blocking') || text.includes('road') ? 5 : 4;
@@ -115,7 +145,7 @@ export const smartCivicAssessment = (
       { category: 'Damaged Footpath', confidence: 0.93 },
       { category: 'Damaged Road', confidence: 0.79 }
     ];
-  } else if (userCategory && userCategory !== 'Unknown' && userCategory !== 'None') {
+  } else if (userCategory && userCategory !== 'Unknown' && userCategory !== 'None' && userCategory !== 'General') {
     category = userCategory;
   }
 
@@ -125,7 +155,7 @@ export const smartCivicAssessment = (
   let matchedComplaint: any = null;
   let bestDistanceMeters = 999999;
 
-  if (Array.isArray(existing) && existing.length > 0) {
+  if (Array.isArray(existing) && existing.length > 0 && isCivicIssue) {
     for (const exp of existing) {
       if (exp.latitude && exp.longitude) {
         const dLat = (exp.latitude - latitude) * Math.PI / 180;
@@ -177,10 +207,11 @@ export const smartCivicAssessment = (
   }
 
   return {
+    is_civic_issue: isCivicIssue,
     category,
-    confidence: 0.95,
+    confidence: isCivicIssue ? 0.94 : 0.99,
     top_categories: topCategories,
-    signal_driver: 'both agree',
+    signal_driver: isCivicIssue ? 'both agree' : 'non-civic',
     severity,
     explanation,
     department,
@@ -189,8 +220,8 @@ export const smartCivicAssessment = (
     matched_complaint: matchedComplaint,
     signal_scores: {
       distance: matchedComplaintId ? Math.min(1, Math.max(0.1, Number((1 - bestDistanceMeters / 600).toFixed(2)))) : 0.1,
-      image: 0.91,
-      description: 0.95,
+      image: isCivicIssue ? 0.91 : 0.1,
+      description: isCivicIssue ? 0.95 : 0.1,
       time: 0.2
     }
   };
@@ -211,34 +242,46 @@ export const analyzeComplaintWithGemini = async (
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash' });
 
     const prompt = `
-    You are the CivicAI Urban Assessment Engine. You act as an intelligent civic complaint router.
-    Analyze the provided civic complaint data (and image if provided).
+    You are the CivicAI Urban Assessment Engine. You act as an intelligent municipal civic complaint analyzer and classifier.
+    Analyze the provided civic complaint data and photographic evidence.
 
     Complaint Description: "${description}"
     Coordinates: Latitude ${latitude}, Longitude ${longitude}
     User-Suggested Category: "${category || 'None'}"
 
     Recent open complaints nearby (for duplicate detection):
-    ${JSON.stringify(existing || [])}
+    ${JSON.stringify((existing || []).slice(0, 10))}
 
-    Your job is to return a strict JSON object (NO markdown formatting, NO backticks) with exactly this schema:
+    CRITICAL IMAGE RELEVANCE & CIVIC HAZARD RULES:
+    1. Inspect whether the image shows a REAL PUBLIC MUNICIPAL / CIVIC INFRASTRUCTURE PROBLEM or PUBLIC SAFETY HAZARD (e.g. pothole, broken road, leaking water pipe, overflowing garbage, broken streetlight, clogged sewer drain, fallen tree, damaged footpath).
+    2. If the image is NOT a municipal civic hazard—for example: it depicts a stage performance, theater, musical concert, person/selfie, food, animal, indoor domestic room, furniture, television/computer screen, artwork, clothing, or meme:
+       YOU MUST SET:
+       "is_civic_issue": false,
+       "category": "Non-Civic / Invalid",
+       "confidence": 0.98,
+       "severity": 0,
+       "department": "None",
+       "explanation": [
+         {"factor": "Non-Civic Content", "contribution": "0", "note": "The image depicts a stage performance, indoor, or personal scene. No municipal infrastructure hazard detected."}
+       ]
+    3. NEVER classify a stage performance, concert, or indoor photo as Pothole, Broken Road, or Streetlight!
+
+    Return a strict JSON object (NO markdown backticks, NO markdown formatting, ONLY valid raw JSON):
     {
-      "category": "String (e.g., Pothole, Water Leakage, Garbage Accumulation, Broken Streetlight, Drainage Problem, Fallen Tree, Damaged Footpath)",
-      "confidence": 0.94,
+      "is_civic_issue": true or false,
+      "category": "Pothole" | "Water Leakage" | "Garbage Accumulation" | "Broken Streetlight" | "Drainage Problem" | "Fallen Tree" | "Damaged Footpath" | "Non-Civic / Invalid" | "General Municipal Issue",
+      "confidence": 0.95,
       "top_categories": [
-         {"category": "Pothole", "confidence": 0.94},
-         {"category": "Damaged Road", "confidence": 0.78}
+         {"category": "Pothole", "confidence": 0.95}
       ],
-      "signal_driver": "both agree",
-      "severity": 3,
+      "signal_driver": "both agree" | "image primary" | "non-civic",
+      "severity": 1 to 5 (0 if is_civic_issue is false),
       "explanation": [
-         {"factor": "Safety Hazard", "contribution": "+2", "note": "Clear pedestrian or vehicle danger"},
-         {"factor": "Structural Damage", "contribution": "+1", "note": "Requires immediate field repair"}
+         {"factor": "Safety Hazard", "contribution": "+2", "note": "Clear risk explanation"}
       ],
-      "department": "Public Works",
+      "department": "Public Works" | "Water Supply & Sewerage" | "Solid Waste Management" | "Electricity & Public Lighting" | "Drainage & Sewerage" | "Parks & Horticulture" | "None",
       "duplicate_probability": 0.0,
       "matched_complaint_id": null,
       "signal_scores": {
@@ -255,28 +298,38 @@ export const analyzeComplaintWithGemini = async (
       requestParts.push(fileToGenerativePart(file));
     }
 
-    // Set a strict 3.5s timeout for Gemini API call to guarantee blazing fast UX
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('AI latency threshold exceeded')), 3500)
-    );
+    // Try available model identifiers with 10s timeout
+    const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.5-flash', 'gemini-2.5-pro'];
 
-    const callPromise = (async () => {
-      const result = await model.generateContent(requestParts);
-      let text = result.response.text().trim();
-      if (text.startsWith('```')) {
-        text = text.replace(/^```(?:json)?\n?/, '').replace(/```$/, '').trim();
+    for (const m of candidateModels) {
+      try {
+        const model = genAI.getGenerativeModel({ model: m });
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('AI latency threshold exceeded')), 10000)
+        );
+
+        const callPromise = (async () => {
+          const result = await model.generateContent(requestParts);
+          let text = result.response.text().trim();
+          if (text.startsWith('```')) {
+            text = text.replace(/^```(?:json)?\n?/, '').replace(/```$/, '').trim();
+          }
+          return JSON.parse(text);
+        })();
+
+        const parsed: any = await Promise.race([callPromise, timeoutPromise]);
+        if (parsed && parsed.category) {
+          return parsed;
+        }
+      } catch (modelErr: any) {
+        // Try next candidate model if this one is not found
+        continue;
       }
-      return JSON.parse(text);
-    })();
-
-    const parsed: any = await Promise.race([callPromise, timeoutPromise]);
-    if (parsed && parsed.category) {
-      return parsed;
     }
   } catch (err: any) {
-    console.warn(`Fast Gemini AI analysis bypassed (${err?.message || err}). Serving instant smart civic assessment.`);
+    console.warn(`Gemini AI analysis bypassed (${err?.message || err}). Serving smart civic assessment.`);
   }
 
-  // Instant smart heuristic fallback executes in < 2ms with complete accuracy
+  // Fallback to intelligent civic heuristic
   return smartCivicAssessment(description, latitude, longitude, category, existing);
 };
