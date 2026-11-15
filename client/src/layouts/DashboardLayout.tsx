@@ -86,6 +86,7 @@ export const DashboardLayout = () => {
           { name: 'Overview', path: '/admin/dashboard', icon: BarChart2 },
           { name: 'User Directory', path: '/admin/users', icon: Users },
           { name: 'All Complaints', path: '/admin/complaints', icon: FileText },
+          { name: 'Live Operations Map', path: '/admin/map', icon: MapIcon },
           { name: 'Platform Settings', path: '/admin/settings', icon: Settings }
         ]
       }

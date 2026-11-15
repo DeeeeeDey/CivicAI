@@ -29,43 +29,67 @@ const getBoundingBox = (lat: number, lng: number, radiusKm: number) => {
 router.get('/public/map', async (req, res, next) => {
   try {
     const { lat, lng, radiusKm, category, severity, status, limit = '1000' } = req.query;
-    
-    let whereClause = Prisma.empty;
     let limitNum = parseInt(limit as string, 10);
+    if (isNaN(limitNum) || limitNum <= 0) limitNum = 1000;
     
     if (lat && lng && radiusKm) {
-      const cLat = parseFloat(lat as string);
-      const cLng = parseFloat(lng as string);
-      const rKm = parseFloat(radiusKm as string);
-      const box = getBoundingBox(cLat, cLng, rKm);
-      
-      const complaints = await prisma.$queryRaw`
-        SELECT id, "publicId", description as title, latitude, longitude, severity, status, "categoryId"
-        FROM "Complaint"
-        WHERE latitude BETWEEN ${box.minLat} AND ${box.maxLat}
-          AND longitude BETWEEN ${box.minLng} AND ${box.maxLng}
-          AND (
-            6371 * acos(
-              cos(radians(${cLat})) * cos(radians(latitude)) *
-              cos(radians(longitude) - radians(${cLng})) +
-              sin(radians(${cLat})) * sin(radians(latitude))
-            )
-          ) <= ${rKm}
-        LIMIT ${limitNum}
-      `;
-      return res.json(complaints);
-    } else {
-      // Fallback to basic findMany
-      const complaints = await prisma.complaint.findMany({
-        take: limitNum,
-        select: { id: true, publicId: true, latitude: true, longitude: true, severity: true, status: true }
-      });
-      return res.json(complaints);
+      try {
+        const cLat = parseFloat(lat as string);
+        const cLng = parseFloat(lng as string);
+        const rKm = parseFloat(radiusKm as string);
+        const box = getBoundingBox(cLat, cLng, rKm);
+        
+        const complaints = await prisma.$queryRaw`
+          SELECT id, "publicId", description, description as title, latitude, longitude, severity, status, "categoryId", "imageUrl", address, "createdAt"
+          FROM "Complaint"
+          WHERE latitude BETWEEN ${box.minLat} AND ${box.maxLat}
+            AND longitude BETWEEN ${box.minLng} AND ${box.maxLng}
+            AND (
+              6371 * acos(
+                LEAST(1.0, GREATEST(-1.0,
+                  cos(radians(${cLat})) * cos(radians(latitude)) *
+                  cos(radians(longitude) - radians(${cLng})) +
+                  sin(radians(${cLat})) * sin(radians(latitude))
+                ))
+              )
+            ) <= ${rKm}
+          ORDER BY "createdAt" DESC
+          LIMIT ${limitNum}
+        `;
+        if (Array.isArray(complaints) && complaints.length > 0) {
+          return res.json(complaints);
+        }
+      } catch (rawErr) {
+        console.warn('Geospatial raw query fallback:', rawErr);
+      }
     }
+    
+    // Fallback to finding all geo-located complaints
+    const complaints = await prisma.complaint.findMany({
+      take: limitNum,
+      where: {
+        latitude: { not: 0 },
+        longitude: { not: 0 }
+      },
+      select: {
+        id: true,
+        publicId: true,
+        description: true,
+        latitude: true,
+        longitude: true,
+        severity: true,
+        status: true,
+        imageUrl: true,
+        address: true,
+        createdAt: true,
+        category: { select: { id: true, name: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    return res.json(complaints);
   } catch (err) { next(err); }
 });
 
-// Stats endpoint for public
 router.get('/public/stats', async (req, res, next) => {
   try {
     const { lat, lng, radiusKm } = req.query;

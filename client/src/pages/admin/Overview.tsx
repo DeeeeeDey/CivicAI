@@ -1,3 +1,4 @@
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/axios';
 import { GlassCard } from '../../components/ui/GlassCard';
@@ -17,11 +18,61 @@ import {
   TrendingUp,
   Cpu,
   Mail,
-  Database
+  Database,
+  MapPin,
+  Maximize2,
+  Minimize2,
+  Navigation,
+  Layers,
+  Filter
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import { useTheme } from '../../theme/ThemeProvider';
+
+const createAdminIcon = (severity: number, status: string) => {
+  const colors: Record<number, string> = {
+    1: '#10b981', 2: '#84cc16', 3: '#eab308', 4: '#f97316', 5: '#ef4444'
+  };
+  const color = colors[severity] || '#eab308';
+  const isUrgent = severity >= 4 && status !== 'RESOLVED' && status !== 'VERIFIED';
+  const pulse = isUrgent
+    ? '<div style="position: absolute; inset: -5px; border-radius: 50%; border: 2px solid ' + color + '; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>'
+    : '';
+
+  return L.divIcon({
+    className: 'custom-icon',
+    html: `
+      <div style="position: relative; width: 22px; height: 22px;">
+        ${pulse}
+        <div style="background-color: ${color}; width: 22px; height: 22px; border-radius: 50%; border: 2px solid white; box-shadow: 0 3px 6px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;">
+          ${severity}
+        </div>
+      </div>
+    `,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11]
+  });
+};
+
+const AdminMapController = ({ center }: { center: [number, number] }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (center && center[0] && center[1]) {
+      map.flyTo(center, 12, { duration: 1.2 });
+    }
+  }, [center, map]);
+  return null;
+};
 
 export const AdminOverview = () => {
+  const { theme } = useTheme();
+  const [mapFilter, setMapFilter] = useState<'ALL' | 'CRITICAL' | 'UNASSIGNED' | 'IN_PROGRESS'>('ALL');
+  const [expandedMap, setExpandedMap] = useState(false);
+
   const { data: stats, isLoading, error } = useQuery({
     queryKey: ['adminStats'],
     queryFn: async () => {
@@ -30,6 +81,32 @@ export const AdminOverview = () => {
     },
     refetchInterval: 30000 // auto-refresh every 30s
   });
+
+  const { data: mapComplaints = [], isLoading: mapLoading } = useQuery({
+    queryKey: ['adminMapComplaints'],
+    queryFn: async () => {
+      const res = await api.get('/complaints/public/map');
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    refetchInterval: 30000
+  });
+
+  const filteredMapPins = useMemo(() => {
+    return mapComplaints.filter((c: any) => {
+      if (!c.latitude || !c.longitude) return false;
+      if (mapFilter === 'CRITICAL') return c.severity >= 4;
+      if (mapFilter === 'UNASSIGNED') return c.status === 'REPORTED' || c.status === 'UNDER_REVIEW';
+      if (mapFilter === 'IN_PROGRESS') return c.status === 'IN_PROGRESS' || c.status === 'ASSIGNED';
+      return true;
+    });
+  }, [mapComplaints, mapFilter]);
+
+  const mapCenter: [number, number] = useMemo(() => {
+    if (filteredMapPins.length > 0 && filteredMapPins[0].latitude && filteredMapPins[0].longitude) {
+      return [Number(filteredMapPins[0].latitude), Number(filteredMapPins[0].longitude)];
+    }
+    return [22.5726, 88.3639];
+  }, [filteredMapPins]);
 
   if (isLoading) {
     return (
@@ -76,8 +153,13 @@ export const AdminOverview = () => {
         </div>
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-success/10 border border-success/30 text-success text-xs font-semibold">
-            <span className="w-2 h-2 rounded-full bg-success animate-ping"></span> Live Operations
+            <span className="w-2 h-2 rounded-full bg-success animate-ping"></span> Live Operations (30s)
           </span>
+          <Link to="/admin/map">
+            <Button variant="outline" className="text-xs flex items-center gap-1.5">
+              <MapPin size={14} className="text-accent" /> Fullscreen Map
+            </Button>
+          </Link>
           <Link to="/admin/complaints">
             <Button variant="secondary" className="text-xs">
               View Master Queue
@@ -163,6 +245,169 @@ export const AdminOverview = () => {
             </div>
           </Link>
         </div>
+
+        {/* ========================================================================= */}
+        {/* LIVE CITY OPERATIONS MAP (NEW & FULLY INTERACTIVE) */}
+        {/* ========================================================================= */}
+        <GlassCard variants={scrollReveal} className="p-0 overflow-hidden shadow-2xl border-accent/20">
+          <div className="p-5 border-b border-border bg-surface flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-accent/10 text-accent flex items-center justify-center">
+                <MapPin size={20} />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2">
+                  Live City Operations & Incident Map
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20">
+                    {filteredMapPins.length} pins
+                  </span>
+                </h2>
+                <p className="text-xs text-ink-500">Real-time geospatial hazard pins across municipal territory</p>
+              </div>
+            </div>
+
+            {/* Filter Tabs & Expand Toggle */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex gap-1.5 p-1 bg-surface-glass rounded-xl border border-border text-xs">
+                <button
+                  onClick={() => setMapFilter('ALL')}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-colors ${
+                    mapFilter === 'ALL' ? 'bg-accent text-white shadow-sm' : 'text-ink-600 hover:text-ink-900'
+                  }`}
+                >
+                  All ({mapComplaints.length})
+                </button>
+                <button
+                  onClick={() => setMapFilter('CRITICAL')}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-colors ${
+                    mapFilter === 'CRITICAL' ? 'bg-danger text-white shadow-sm' : 'text-ink-600 hover:text-ink-900'
+                  }`}
+                >
+                  Critical (Sev 4-5)
+                </button>
+                <button
+                  onClick={() => setMapFilter('UNASSIGNED')}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-colors ${
+                    mapFilter === 'UNASSIGNED' ? 'bg-warning text-white shadow-sm' : 'text-ink-600 hover:text-ink-900'
+                  }`}
+                >
+                  Unassigned
+                </button>
+                <button
+                  onClick={() => setMapFilter('IN_PROGRESS')}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-colors ${
+                    mapFilter === 'IN_PROGRESS' ? 'bg-info text-white shadow-sm' : 'text-ink-600 hover:text-ink-900'
+                  }`}
+                >
+                  In Progress
+                </button>
+              </div>
+
+              <button
+                onClick={() => setExpandedMap(!expandedMap)}
+                title={expandedMap ? 'Collapse map' : 'Expand map height'}
+                className="p-2 rounded-xl border border-border bg-surface text-ink-600 hover:text-ink-900 transition-colors"
+              >
+                {expandedMap ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Leaflet Map Area */}
+          <div className={`relative transition-all duration-300 ${expandedMap ? 'h-[580px]' : 'h-[380px]'}`}>
+            <MapContainer
+              center={mapCenter}
+              zoom={12}
+              style={{ height: '100%', width: '100%' }}
+              zoomControl={true}
+              className={theme === 'dark' ? 'map-tiles-dark' : ''}
+            >
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <AdminMapController center={mapCenter} />
+
+              <MarkerClusterGroup chunkedLoading>
+                {filteredMapPins.map((c: any) => {
+                  const latNum = Number(c.latitude);
+                  const lngNum = Number(c.longitude);
+                  if (isNaN(latNum) || isNaN(lngNum)) return null;
+
+                  return (
+                    <Marker
+                      key={c.id || c.publicId}
+                      position={[latNum, lngNum]}
+                      icon={createAdminIcon(c.severity, c.status)}
+                    >
+                      <Popup className="custom-popup">
+                        <div className="p-1 min-w-[220px]">
+                          {c.imageUrl && (
+                            <img
+                              src={c.imageUrl}
+                              alt="Issue photo"
+                              className="w-full h-24 object-cover rounded-lg mb-2 shadow-sm"
+                            />
+                          )}
+                          <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                            <Badge color={c.severity >= 4 ? 'danger' : 'warning'}>Sev {c.severity}/5</Badge>
+                            <Badge
+                              color={
+                                c.status === 'RESOLVED' || c.status === 'VERIFIED'
+                                  ? 'success'
+                                  : c.status === 'IN_PROGRESS' || c.status === 'ASSIGNED'
+                                  ? 'warning'
+                                  : 'info'
+                              }
+                            >
+                              {c.status.replace('_', ' ')}
+                            </Badge>
+                            <span className="text-[10px] font-mono font-bold text-ink-400 uppercase">
+                              #{c.publicId || c.id}
+                            </span>
+                          </div>
+
+                          <h4 className="font-bold text-xs text-ink-900 mb-1">
+                            {c.description || c.title || 'Civic Issue'}
+                          </h4>
+                          <p className="text-[11px] text-ink-500 mb-2">
+                            {c.address || c.category?.name || 'General Municipal Issue'}
+                          </p>
+
+                          <div className="pt-2 border-t border-border flex items-center justify-between">
+                            <Link
+                              to={`/track/${c.publicId || c.id}`}
+                              className="text-xs font-semibold text-accent hover:underline flex items-center gap-1"
+                            >
+                              Inspect Ticket <Navigation size={10} />
+                            </Link>
+                            <Link
+                              to="/admin/complaints"
+                              className="text-xs text-ink-400 hover:text-ink-900"
+                            >
+                              Queue &rarr;
+                            </Link>
+                          </div>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })}
+              </MarkerClusterGroup>
+            </MapContainer>
+
+            {/* Map Legend Floating Overlay */}
+            <div className="absolute bottom-3 left-3 z-[400] glass px-3 py-2 rounded-xl text-[11px] flex items-center gap-3 border border-white/20 shadow-md">
+              <span className="font-bold text-ink-700">Severity:</span>
+              <span className="flex items-center gap-1 text-danger font-semibold">
+                <span className="w-2.5 h-2.5 rounded-full bg-danger"></span> 4-5 Critical
+              </span>
+              <span className="flex items-center gap-1 text-warning font-semibold">
+                <span className="w-2.5 h-2.5 rounded-full bg-warning"></span> 3 Moderate
+              </span>
+              <span className="flex items-center gap-1 text-success font-semibold">
+                <span className="w-2.5 h-2.5 rounded-full bg-success"></span> 1-2 Low
+              </span>
+            </div>
+          </div>
+        </GlassCard>
 
         {/* Main Content Split: Recent Activity & Diagnostics */}
         <div className="grid lg:grid-cols-3 gap-8">
@@ -294,4 +539,5 @@ export const AdminOverview = () => {
     </div>
   );
 };
+
 export default AdminOverview;

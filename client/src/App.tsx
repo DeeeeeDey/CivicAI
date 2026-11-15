@@ -127,6 +127,7 @@ function App() {
                      <Route path="/admin/dashboard" element={<AdminOverview />} />
                      <Route path="/admin/users" element={<AdminUsersPage />} />
                      <Route path="/admin/complaints" element={<AdminComplaintsPage />} />
+                     <Route path="/admin/map" element={<MapPage />} />
                      <Route path="/admin/settings" element={<AdminSettingsPage />} />
                    </Route>
                 </Route>
