@@ -335,13 +335,13 @@ export const ReportIssue = () => {
       }
       fd.append('image', imageToSend);
 
-      // Race with a hard client-side 6-second timeout guarantee
+      // Race with a hard client-side timeout guarantee
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('AI inference timeout threshold reached')), 12000)
+        setTimeout(() => reject(new Error('AI inference timeout threshold reached')), 14000)
       );
 
       const res: any = await Promise.race([
-        api.post('/ai/preview', fd, { timeout: 11000 }),
+        api.post('/ai/preview', fd, { timeout: 12500 }),
         timeoutPromise
       ]);
 

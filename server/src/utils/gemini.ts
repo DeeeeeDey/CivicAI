@@ -256,17 +256,18 @@ export const analyzeComplaintWithGemini = async (
 
     CRITICAL IMAGE RELEVANCE & CIVIC HAZARD RULES:
     1. Inspect whether the image shows a REAL PUBLIC MUNICIPAL / CIVIC INFRASTRUCTURE PROBLEM or PUBLIC SAFETY HAZARD (e.g. pothole, broken road, leaking water pipe, overflowing garbage, broken streetlight, clogged sewer drain, fallen tree, damaged footpath).
-    2. If the image is NOT a municipal civic hazard—for example: it depicts a stage performance, theater, musical concert, person/selfie, food, animal, indoor domestic room, furniture, television/computer screen, artwork, clothing, or meme:
+    2. If the image is NOT a municipal civic hazard—for example: it depicts a person, selfie, portrait, human face, suit/clothing, indoor room, domestic setting, furniture, computer/phone screen, screenshot, stage performance, theater, musical concert, food, pet/animal, or meme:
        YOU MUST SET:
        "is_civic_issue": false,
        "category": "Non-Civic / Invalid",
-       "confidence": 0.98,
+       "confidence": 0.99,
        "severity": 0,
        "department": "None",
        "explanation": [
-         {"factor": "Non-Civic Content", "contribution": "0", "note": "The image depicts a stage performance, indoor, or personal scene. No municipal infrastructure hazard detected."}
+         {"factor": "Personal / Non-Civic Content", "contribution": "0", "note": "Image depicts a person, portrait, or non-infrastructure scene. No municipal civic hazard detected."}
        ]
-    3. NEVER classify a stage performance, concert, or indoor photo as Pothole, Broken Road, or Streetlight!
+    3. Even if the user description mentions words like 'garbage', 'pothole', or 'road', if the photo depicts a person, portrait, or non-civic scene, the image ALWAYS takes absolute priority and you MUST flag it as is_civic_issue: false!
+    4. NEVER classify a portrait, person, selfie, stage performance, concert, or indoor photo as Pothole, Broken Road, Garbage, or Streetlight!
 
     Return a strict JSON object (NO markdown backticks, NO markdown formatting, ONLY valid raw JSON):
     {
@@ -299,7 +300,8 @@ export const analyzeComplaintWithGemini = async (
     }
 
     // Try fast multimodal models with responseMimeType: 'application/json'
-    const candidateModels = ['gemini-flash-lite-latest', 'gemini-3-flash-preview'];
+    // Prioritize gemini-3-flash-preview (not subject to 503 high demand spikes)
+    const candidateModels = ['gemini-3-flash-preview', 'gemini-flash-lite-latest'];
 
     for (const m of candidateModels) {
       try {
@@ -308,7 +310,7 @@ export const analyzeComplaintWithGemini = async (
           generationConfig: { responseMimeType: 'application/json' }
         });
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('AI latency threshold exceeded')), 5000)
+          setTimeout(() => reject(new Error('AI latency threshold exceeded')), 9000)
         );
 
         const callPromise = (async () => {
@@ -321,13 +323,23 @@ export const analyzeComplaintWithGemini = async (
         })();
 
         const parsed: any = await Promise.race([callPromise, timeoutPromise]);
-        if (parsed && (parsed.category || parsed.is_civic_issue !== undefined)) {
+        if (parsed) {
+          if (parsed.is_civic_issue === false || parsed.category?.toLowerCase().includes('non-civic') || parsed.category?.toLowerCase().includes('portrait') || parsed.category?.toLowerCase().includes('person')) {
+            parsed.is_civic_issue = false;
+            parsed.category = 'Non-Civic / Invalid';
+            parsed.department = 'None';
+            parsed.severity = 0;
+            parsed.signal_driver = 'non-civic';
+            parsed.top_categories = [
+              { category: 'Non-Civic / Invalid', confidence: 0.99 }
+            ];
+          }
           return parsed;
         }
       } catch (modelErr: any) {
         const errMsg = String(modelErr?.message || modelErr || '');
-        console.warn(`Model ${m} inference bypassed (${errMsg}). Falling back to instant smart assessment.`);
-        break; // Fast failover to smart civic assessment without chaining multiple timeouts
+        console.warn(`Model ${m} inference bypassed (${errMsg}). Trying next model or fallback.`);
+        continue; // Try next model before falling back to heuristics
       }
     }
   } catch (err: any) {
