@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { GlassCard } from '../components/ui/GlassCard';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, CheckCircle2, Clock, AlertTriangle, FileText, Bot, Camera, ShieldCheck } from 'lucide-react';
+import { Search, CheckCircle2, Clock, AlertTriangle, FileText, Bot, Camera, ShieldCheck, Copy } from 'lucide-react';
 import { api } from '../api/axios';
 import { Thumbnail } from '../components/ui/ImageLightbox';
 
 export const Track = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [ticketId, setTicketId] = useState(id || '');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -78,6 +79,64 @@ export const Track = () => {
          {complaint && (
             <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} className="w-full max-w-2xl space-y-6">
                <GlassCard className="p-8 shadow-xl bg-surface border-border">
+                  {/* Merged Parent Notice */}
+                  {complaint.mergedInto && (
+                    <div className="mb-6 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-200/70 text-amber-900 flex items-center justify-center shrink-0">
+                          <Copy size={20} />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-ink-900">Merged into Primary Ticket #{complaint.mergedInto}</h4>
+                          <p className="text-xs text-ink-600 mt-0.5">Municipal operations combined this report with active ticket #{complaint.mergedInto} to consolidate field resources.</p>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setTicketId(complaint.mergedInto);
+                          navigate(`/track/${complaint.mergedInto}`);
+                        }}
+                        className="text-xs shrink-0 bg-accent text-white"
+                      >
+                        Track #{complaint.mergedInto} &rarr;
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Merged Children Notice */}
+                  {complaint.mergedTickets && complaint.mergedTickets.length > 0 && (
+                    <div className="mb-6 p-4 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <Copy className="text-blue-600" size={16} />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-blue-900 dark:text-blue-300">
+                          Consolidated Community Reports ({complaint.mergedTickets.length + 1} Tickets Combined)
+                        </h4>
+                      </div>
+                      <p className="text-xs text-ink-600 mb-2">
+                        This issue represents multiple reports from local residents merged for unified remediation:
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-blue-100 text-blue-900 border border-blue-300">
+                          Primary: #{complaint.publicId}
+                        </span>
+                        {complaint.mergedTickets.map((tid: string) => (
+                          <span
+                            key={tid}
+                            onClick={() => {
+                              setTicketId(tid);
+                              navigate(`/track/${tid}`);
+                            }}
+                            className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-surface border border-paper-line text-ink-700 hover:border-accent hover:text-accent cursor-pointer transition-colors"
+                            title="Click to inspect this merged report"
+                          >
+                            Merged: #{tid}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Header Strip */}
                   <div className="flex justify-between items-start mb-6 pb-6 border-b border-border flex-wrap gap-4">
                      <div>

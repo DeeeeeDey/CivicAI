@@ -81,5 +81,30 @@ export const transitionComplaint = async (
     return comp;
   });
 
+  // Notify citizens of merged complaints for this ticket
+  try {
+    const mergedComplaints = await prisma.complaint.findMany({
+      where: {
+        status: 'REJECTED',
+        aiAnalysis: { duplicateOf: updated.publicId }
+      },
+      include: { citizen: true }
+    });
+
+    for (const merged of mergedComplaints) {
+      if (merged.citizen?.email && merged.citizenId !== updated.citizenId) {
+        sendStatusUpdateEmail(
+          merged.citizen.email,
+          updated.publicId,
+          targetStatus,
+          `Update on your merged report #${merged.publicId}: Primary ticket #${updated.publicId} is now ${targetStatus}. ${notes || ''}`,
+          merged.citizenId
+        ).catch(e => console.error('Failed to notify merged ticket holder on update:', e));
+      }
+    }
+  } catch (err) {
+    console.warn('Non-fatal error notifying merged complaint holders:', err);
+  }
+
   return updated;
 };

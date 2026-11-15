@@ -15,7 +15,8 @@ import {
   AlertTriangle,
   Bot,
   XCircle,
-  ExternalLink
+  ExternalLink,
+  Copy
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Thumbnail } from '../../components/ui/ImageLightbox';
@@ -186,6 +187,18 @@ export const OfficerQueuePage = () => {
                           Severity {c.severity}/5
                         </Badge>
                         <Badge color="default">{c.category?.name || 'General'}</Badge>
+                        {c.mergedTickets && c.mergedTickets.length > 0 && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-300 flex items-center gap-1">
+                            <Copy size={11} className="text-blue-700" />
+                            {c.mergedTickets.length} Merged ({c.mergedTickets.map((t: string) => '#' + t).join(', ')})
+                          </span>
+                        )}
+                        {c.isMergedChild && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                            <Copy size={11} className="text-amber-700" />
+                            Merged into #{c.aiAnalysis?.duplicateOf}
+                          </span>
+                        )}
                       </div>
 
                       <h4 className="text-base font-semibold text-ink-900">{c.description}</h4>
@@ -260,6 +273,18 @@ export const OfficerQueuePage = () => {
                   <p className="font-bold text-ink-900">{selectedTicket.category?.name || 'General Issue'}</p>
                   <p className="text-ink-600">{selectedTicket.description}</p>
                 </div>
+
+                {selectedTicket.mergedTickets && selectedTicket.mergedTickets.length > 0 && (
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-xl text-xs space-y-1">
+                    <p className="font-bold text-blue-900 dark:text-blue-300 flex items-center gap-1.5">
+                      <Copy size={13} /> Consolidated Community Tickets ({selectedTicket.mergedTickets.length} Merged)
+                    </p>
+                    <p className="text-ink-600">
+                      Contains: <strong>{selectedTicket.mergedTickets.map((t: string) => '#' + t).join(', ')}</strong>.
+                      All {selectedTicket.mergedTickets.length + 1} citizens will automatically receive notification updates.
+                    </p>
+                  </div>
+                )}
 
                 <div>
                   <label className="text-xs font-bold text-ink-900 uppercase block mb-1.5">

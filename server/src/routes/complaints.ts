@@ -119,12 +119,37 @@ router.get('/', authenticate, async (req, res, next) => {
         resolutions: { orderBy: { createdAt: 'desc' } },
         aiAnalysis: true,
         citizen: { select: { id: true, name: true, email: true } },
-        supporters: true
+        supporters: { include: { user: { select: { id: true, name: true } } } }
       },
 
       orderBy: { createdAt: 'desc' }
     });
-    res.json(complaints);
+    const publicIds = complaints.map(c => c.publicId);
+    const mergedLinks = await prisma.aiAnalysis.findMany({
+      where: {
+        duplicateOf: { in: publicIds }
+      },
+      include: {
+        complaint: { select: { id: true, publicId: true, description: true, status: true } }
+      }
+    });
+
+    const mergedMap = new Map<string, string[]>();
+    for (const link of mergedLinks) {
+      if (link.duplicateOf && link.complaint && link.complaint.status === 'REJECTED') {
+        const list = mergedMap.get(link.duplicateOf) || [];
+        list.push(link.complaint.publicId);
+        mergedMap.set(link.duplicateOf, list);
+      }
+    }
+
+    const enriched = complaints.map(c => ({
+      ...c,
+      mergedTickets: mergedMap.get(c.publicId) || [],
+      isMergedChild: Boolean(c.status === 'REJECTED' && c.aiAnalysis?.duplicateOf)
+    }));
+
+    res.json(enriched);
   } catch (err) { next(err); }
 });
 
@@ -134,6 +159,7 @@ router.get('/public/track/:publicId', async (req, res, next) => {
       where: { publicId: req.params.publicId },
       include: {
         category: true,
+        aiAnalysis: true,
         statusHistory: { orderBy: { createdAt: 'desc' } },
         resolutions: {
           orderBy: { createdAt: 'desc' },
@@ -142,6 +168,23 @@ router.get('/public/track/:publicId', async (req, res, next) => {
       }
     });
     if (!complaint) return res.status(404).json({ error: 'Ticket not found' });
+
+    // Check if this ticket was merged into another ticket
+    const mergedInto = complaint.status === 'REJECTED' && complaint.aiAnalysis?.duplicateOf
+      ? complaint.aiAnalysis.duplicateOf
+      : null;
+
+    // Check if other tickets were merged into THIS ticket
+    const mergedChildren = await prisma.aiAnalysis.findMany({
+      where: { duplicateOf: complaint.publicId },
+      include: {
+        complaint: { select: { publicId: true, description: true, status: true, createdAt: true } }
+      }
+    });
+
+    const mergedTickets = mergedChildren
+      .filter(m => m.complaint && m.complaint.status === 'REJECTED')
+      .map(m => m.complaint.publicId);
     res.json({
        publicId: complaint.publicId,
        description: complaint.description,
@@ -152,6 +195,8 @@ router.get('/public/track/:publicId', async (req, res, next) => {
        imageUrl: complaint.imageUrl,
        resolution: complaint.resolutions?.[0] || null,
        resolutions: complaint.resolutions || [],
+       mergedInto,
+       mergedTickets,
        history: complaint.statusHistory.map(h => ({
           date: h.createdAt,
           event: h.notes || 'Status updated to ' + h.status,

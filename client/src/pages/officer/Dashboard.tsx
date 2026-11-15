@@ -246,6 +246,12 @@ export const OfficerDashboard = () => {
                         Severity {c.severity}/5
                       </Badge>
                       <Badge color="default">{c.category?.name || 'General'}</Badge>
+                      {c.mergedTickets && c.mergedTickets.length > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-300 flex items-center gap-1">
+                          <Copy size={11} className="text-blue-700" />
+                          {c.mergedTickets.length} Merged ({c.mergedTickets.map((t: string) => '#' + t).join(', ')})
+                        </span>
+                      )}
                     </div>
                     <h4 className="font-bold text-base text-ink-900">{c.description}</h4>
                     <p className="text-xs text-ink-500">

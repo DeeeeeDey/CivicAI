@@ -125,6 +125,7 @@ router.get('/complaints', async (req, res, next) => {
     const complaints = await prisma.complaint.findMany({
       include: {
         category: true,
+        aiAnalysis: true,
         citizen: { select: { id: true, name: true, email: true } },
         assignments: {
           include: { worker: { select: { id: true, name: true, email: true } } }
@@ -133,7 +134,33 @@ router.get('/complaints', async (req, res, next) => {
       },
       orderBy: { createdAt: 'desc' }
     });
-    res.json(complaints);
+
+    const publicIds = complaints.map(c => c.publicId);
+    const mergedLinks = await prisma.aiAnalysis.findMany({
+      where: {
+        duplicateOf: { in: publicIds }
+      },
+      include: {
+        complaint: { select: { id: true, publicId: true, description: true, status: true } }
+      }
+    });
+
+    const mergedMap = new Map<string, string[]>();
+    for (const link of mergedLinks) {
+      if (link.duplicateOf && link.complaint && link.complaint.status === 'REJECTED') {
+        const list = mergedMap.get(link.duplicateOf) || [];
+        list.push(link.complaint.publicId);
+        mergedMap.set(link.duplicateOf, list);
+      }
+    }
+
+    const enriched = complaints.map(c => ({
+      ...c,
+      mergedTickets: mergedMap.get(c.publicId) || [],
+      isMergedChild: Boolean(c.status === 'REJECTED' && c.aiAnalysis?.duplicateOf)
+    }));
+
+    res.json(enriched);
   } catch (err) { next(err); }
 });
 

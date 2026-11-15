@@ -15,7 +15,8 @@ import {
   User,
   Briefcase,
   Camera,
-  AlertTriangle
+  AlertTriangle,
+  Copy
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Thumbnail } from '../../components/ui/ImageLightbox';
@@ -157,6 +158,18 @@ export const AdminComplaintsPage = () => {
                         Severity {c.severity}/5
                       </Badge>
                       <Badge color="default">{c.category?.name || 'General'}</Badge>
+                      {c.mergedTickets && c.mergedTickets.length > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-300 flex items-center gap-1">
+                          <Copy size={11} className="text-blue-700" />
+                          Includes {c.mergedTickets.length} merged report{c.mergedTickets.length > 1 ? 's' : ''} ({c.mergedTickets.map((t: string) => '#' + t).join(', ')})
+                        </span>
+                      )}
+                      {c.isMergedChild && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                          <Copy size={11} className="text-amber-700" />
+                          Merged into #{c.aiAnalysis?.duplicateOf}
+                        </span>
+                      )}
                     </div>
 
                     <p className="text-base font-semibold text-ink-900">{c.description}</p>

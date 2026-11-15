@@ -296,7 +296,8 @@ router.post('/duplicates/:id/merge', async (req: AuthRequest, res, next) => {
           { publicId: primaryPublicId },
           { id: primaryPublicId }
         ]
-      }
+      },
+      include: { citizen: true }
     });
     if (!primaryComp) return res.status(404).json({ error: 'Primary complaint not found' });
 
@@ -355,16 +356,29 @@ router.post('/duplicates/:id/merge', async (req: AuthRequest, res, next) => {
       }
     });
 
-    // 5. Send status update email and in-app notification to the citizen
+    // 5. Notify BOTH complaint holders of the merge
+    const { sendStatusUpdateEmail } = await import('../services/email');
+
+    // 5a. Notify duplicate ticket holder
     if (duplicateComp.citizen?.email) {
-      const { sendStatusUpdateEmail } = await import('../services/email');
       sendStatusUpdateEmail(
         duplicateComp.citizen.email,
         duplicateComp.publicId,
         'REJECTED',
-        `Merged into primary ticket #${primaryComp.publicId}. You are subscribed to #${primaryComp.publicId} and will receive all repair updates.`,
+        `Merged into primary ticket #${primaryComp.publicId}. You are subscribed to #${primaryComp.publicId} and will receive all progress and resolution updates.`,
         duplicateComp.citizenId
-      ).catch(e => console.error('Failed to notify citizen on merge:', e));
+      ).catch(e => console.error('Failed to notify duplicate citizen on merge:', e));
+    }
+
+    // 5b. Notify primary ticket holder
+    if (primaryComp.citizen?.email && primaryComp.citizenId !== duplicateComp.citizenId) {
+      sendStatusUpdateEmail(
+        primaryComp.citizen.email,
+        primaryComp.publicId,
+        primaryComp.status,
+        `Another community report (${duplicateComp.publicId}) has been merged into your ticket #${primaryComp.publicId}, prioritizing municipal field dispatch.`,
+        primaryComp.citizenId
+      ).catch(e => console.error('Failed to notify primary citizen on merge:', e));
     }
 
     res.json({ success: true, primaryComplaint: primaryComp, mergedComplaint: updatedComp });

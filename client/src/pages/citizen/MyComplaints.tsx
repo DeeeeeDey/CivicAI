@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { Clock, MapPin, CheckCircle2, ExternalLink, Search, Camera } from 'lucide-react';
+import { Clock, MapPin, CheckCircle2, ExternalLink, Search, Camera, Copy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Thumbnail } from '../../components/ui/ImageLightbox';
 
@@ -124,6 +124,18 @@ export const MyComplaints = () => {
                       <Badge color={complaint.severity >= 4 ? 'danger' : complaint.severity >= 3 ? 'warning' : 'info'}>
                         Severity: {complaint.severity}/5
                       </Badge>
+                      {complaint.mergedTickets && complaint.mergedTickets.length > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-300 flex items-center gap-1">
+                          <Copy size={11} className="text-blue-700" />
+                          Includes {complaint.mergedTickets.length} merged report{complaint.mergedTickets.length > 1 ? 's' : ''} ({complaint.mergedTickets.map((t: string) => '#' + t).join(', ')})
+                        </span>
+                      )}
+                      {(complaint.isMergedChild || (complaint.aiAnalysis?.duplicateOf && complaint.status === 'REJECTED')) && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                          <Copy size={11} className="text-amber-700" />
+                          Merged into #{complaint.aiAnalysis?.duplicateOf}
+                        </span>
+                      )}
                     </div>
                     <p className="text-ink-700 font-mono text-sm font-semibold mb-1">{complaint.publicId}</p>
                     <p className="text-ink-500 text-sm flex items-center gap-2">
