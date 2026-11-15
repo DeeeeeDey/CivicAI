@@ -299,13 +299,13 @@ export const analyzeComplaintWithGemini = async (
     }
 
     // Try available model identifiers with 10s timeout
-    const candidateModels = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-pro-latest'];
+    const candidateModels = ['gemini-flash-latest', 'gemini-3.8-flash'];
 
     for (const m of candidateModels) {
       try {
         const model = genAI.getGenerativeModel({ model: m });
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('AI latency threshold exceeded')), 30000)
+          setTimeout(() => reject(new Error('AI latency threshold exceeded')), 7000)
         );
 
         const callPromise = (async () => {
@@ -322,7 +322,12 @@ export const analyzeComplaintWithGemini = async (
           return parsed;
         }
       } catch (modelErr: any) {
-        // Try next candidate model if this one is not found
+        const errMsg = String(modelErr?.message || modelErr || '');
+        console.warn(`Model ${m} error: ${errMsg}`);
+        if (errMsg.includes('429') || errMsg.includes('Quota') || errMsg.includes('quota') || errMsg.includes('RESOURCE_EXHAUSTED')) {
+          console.warn('Gemini API daily quota reached. Falling back to local smart civic engine.');
+          break; // Don't delay the user by trying other models on an exhausted quota!
+        }
         continue;
       }
     }

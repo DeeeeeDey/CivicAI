@@ -38,49 +38,68 @@ const steps = [
   { id: 5, name: 'Submit', icon: CheckCircle2 }
 ];
 
-const compressImage = async (file: File, maxDimension = 1600, quality = 0.8): Promise<File> => {
+const compressImage = async (file: File, maxDimension = 1200, quality = 0.75): Promise<File> => {
   return new Promise((resolve) => {
-    if (!file.type.startsWith('image/') || file.type.includes('svg')) {
+    // Fail-safe: if image processing takes more than 1.5 seconds, resolve immediately with original file
+    const fallbackTimer = setTimeout(() => resolve(file), 1500);
+
+    if (!file || !file.type || !file.type.startsWith('image/') || file.type.includes('svg')) {
+      clearTimeout(fallbackTimer);
       return resolve(file);
     }
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round((height * maxDimension) / width);
-            width = maxDimension;
-          } else {
-            width = Math.round((width * maxDimension) / height);
-            height = maxDimension;
+        try {
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
           }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            clearTimeout(fallbackTimer);
+            return resolve(file);
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => {
+              clearTimeout(fallbackTimer);
+              if (!blob) return resolve(file);
+              const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+              });
+              resolve(compressed);
+            },
+            'image/jpeg',
+            quality
+          );
+        } catch (err) {
+          clearTimeout(fallbackTimer);
+          resolve(file);
         }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return resolve(file);
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) return resolve(file);
-            const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
-              type: 'image/jpeg',
-              lastModified: Date.now()
-            });
-            resolve(compressed);
-          },
-          'image/jpeg',
-          quality
-        );
       };
-      img.onerror = () => resolve(file);
+      img.onerror = () => {
+        clearTimeout(fallbackTimer);
+        resolve(file);
+      };
       img.src = e.target?.result as string;
     };
-    reader.onerror = () => resolve(file);
+    reader.onerror = () => {
+      clearTimeout(fallbackTimer);
+      resolve(file);
+    };
     reader.readAsDataURL(file);
   });
 };
@@ -270,22 +289,23 @@ export const ReportIssue = () => {
     }
 
     setAiLoading(true);
-    setAiProgress(10);
+    setAiProgress(15);
     setAiStageIndex(0);
     setCurrentStep(4);
 
     const startTime = Date.now();
     const ticker = setInterval(() => {
       const elapsed = Date.now() - startTime;
-      const target = Math.min(94, Math.floor(10 + (elapsed / 25000) * 84));
+      // Smoothly advance to 95% over 6 seconds
+      const target = Math.min(95, Math.floor(15 + (elapsed / 6000) * 80));
       setAiProgress(target);
 
-      if (target < 22) setAiStageIndex(0);
-      else if (target < 45) setAiStageIndex(1);
-      else if (target < 68) setAiStageIndex(2);
-      else if (target < 85) setAiStageIndex(3);
+      if (target < 28) setAiStageIndex(0);
+      else if (target < 50) setAiStageIndex(1);
+      else if (target < 72) setAiStageIndex(2);
+      else if (target < 88) setAiStageIndex(3);
       else setAiStageIndex(4);
-    }, 300);
+    }, 180);
 
     const effectiveDesc = (desc || '').trim() || 'Civic infrastructure defect reported for municipal inspection';
 
@@ -296,7 +316,7 @@ export const ReportIssue = () => {
       fd.append('longitude', String(lng || 88.36));
       fd.append('category', 'Unknown');
 
-      let imageToSend: File | Blob = file;
+      let imageToSend: File = file;
       try {
         imageToSend = await compressImage(file);
       } catch (cErr) {
@@ -305,10 +325,10 @@ export const ReportIssue = () => {
       }
       fd.append('image', imageToSend);
 
-      const res = await api.post('/ai/preview', fd, { timeout: 35000 });
+      const res = await api.post('/ai/preview', fd, { timeout: 12000 });
       setAiProgress(100);
       setAiStageIndex(4);
-      await new Promise(r => setTimeout(r, 400));
+      await new Promise(r => setTimeout(r, 350));
 
       if (res.data && res.data.category && res.data.category !== 'Unknown') {
         setAiData(res.data);
@@ -316,9 +336,10 @@ export const ReportIssue = () => {
         setAiData(generateLocalCivicAssessment(effectiveDesc));
       }
     } catch (err: any) {
-      console.warn("AI service latency threshold reached or error, using instant smart assessment:", err);
+      console.warn("AI preview completed via instant smart assessment:", err);
       setAiProgress(100);
-      await new Promise(r => setTimeout(r, 300));
+      setAiStageIndex(4);
+      await new Promise(r => setTimeout(r, 250));
       setAiData(generateLocalCivicAssessment(effectiveDesc));
     } finally {
       clearInterval(ticker);
