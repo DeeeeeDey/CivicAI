@@ -298,14 +298,17 @@ export const analyzeComplaintWithGemini = async (
       requestParts.push(fileToGenerativePart(file));
     }
 
-    // Try fast multimodal model with strict 3.5s latency threshold
-    const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest'];
+    // Try fast multimodal models with responseMimeType: 'application/json'
+    const candidateModels = ['gemini-flash-lite-latest', 'gemini-3-flash-preview'];
 
     for (const m of candidateModels) {
       try {
-        const model = genAI.getGenerativeModel({ model: m });
+        const model = genAI.getGenerativeModel({
+          model: m,
+          generationConfig: { responseMimeType: 'application/json' }
+        });
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('AI latency threshold exceeded')), 3500)
+          setTimeout(() => reject(new Error('AI latency threshold exceeded')), 5000)
         );
 
         const callPromise = (async () => {
@@ -318,7 +321,7 @@ export const analyzeComplaintWithGemini = async (
         })();
 
         const parsed: any = await Promise.race([callPromise, timeoutPromise]);
-        if (parsed && parsed.category) {
+        if (parsed && (parsed.category || parsed.is_civic_issue !== undefined)) {
           return parsed;
         }
       } catch (modelErr: any) {
