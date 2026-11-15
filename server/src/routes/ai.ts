@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authenticate } from '../middlewares';
 import multer from 'multer';
 import { analyzeComplaintWithGemini, smartCivicAssessment } from '../utils/gemini';
 
@@ -12,7 +11,7 @@ const upload = multer({
 const router = Router();
 const prisma = new PrismaClient();
 
-router.post('/preview', authenticate, upload.single('image'), async (req, res, next) => {
+router.post('/preview', upload.single('image'), async (req, res, next) => {
   try {
     const { description, latitude, longitude, category } = req.body;
     const file = req.file;

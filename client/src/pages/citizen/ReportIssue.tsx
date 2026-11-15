@@ -296,8 +296,8 @@ export const ReportIssue = () => {
     const startTime = Date.now();
     const ticker = setInterval(() => {
       const elapsed = Date.now() - startTime;
-      // Smoothly advance to 95% over 6 seconds
-      const target = Math.min(95, Math.floor(15 + (elapsed / 6000) * 80));
+      // Smoothly advance to 95% over 4.5 seconds
+      const target = Math.min(95, Math.floor(15 + (elapsed / 4500) * 80));
       setAiProgress(target);
 
       if (target < 28) setAiStageIndex(0);
@@ -305,7 +305,7 @@ export const ReportIssue = () => {
       else if (target < 72) setAiStageIndex(2);
       else if (target < 88) setAiStageIndex(3);
       else setAiStageIndex(4);
-    }, 180);
+    }, 150);
 
     const effectiveDesc = (desc || '').trim() || 'Civic infrastructure defect reported for municipal inspection';
 
@@ -325,12 +325,21 @@ export const ReportIssue = () => {
       }
       fd.append('image', imageToSend);
 
-      const res = await api.post('/ai/preview', fd, { timeout: 12000 });
+      // Race with a hard client-side 6-second timeout guarantee
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('AI inference timeout threshold reached')), 6000)
+      );
+
+      const res: any = await Promise.race([
+        api.post('/ai/preview', fd, { timeout: 5500 }),
+        timeoutPromise
+      ]);
+
       setAiProgress(100);
       setAiStageIndex(4);
-      await new Promise(r => setTimeout(r, 350));
+      await new Promise(r => setTimeout(r, 300));
 
-      if (res.data && res.data.category && res.data.category !== 'Unknown') {
+      if (res?.data && res.data.category && res.data.category !== 'Unknown') {
         setAiData(res.data);
       } else {
         setAiData(generateLocalCivicAssessment(effectiveDesc));
