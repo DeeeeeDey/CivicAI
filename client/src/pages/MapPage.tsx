@@ -45,8 +45,14 @@ export const MapPage = () => {
         setLoading(true);
         // We use the full API URL just in case, or relative if proxied
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-        const res = await fetch(`${apiUrl}/complaints/public/map?lat=${lat}&lng=${lng}&radiusKm=10`);
-        const data = await res.json();
+        let res = await fetch(`${apiUrl}/complaints/public/map?lat=${lat}&lng=${lng}&radiusKm=25`);
+        let data = await res.json();
+        if (Array.isArray(data) && data.length === 0) {
+          res = await fetch(`${apiUrl}/complaints/public/map`);
+          data = await res.json();
+        }
+
+
         if (Array.isArray(data)) {
           const mapped = data.map(item => ({
              ...item,
