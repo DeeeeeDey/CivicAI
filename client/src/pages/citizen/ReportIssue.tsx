@@ -259,6 +259,14 @@ const generateLocalCivicAssessment = (desc: string) => {
   };
 };
 
+const aiStages = [
+  { title: 'Multimodal Vision Scan', desc: 'Analyzing photographic evidence and visual infrastructure features' },
+  { title: 'Geo-Spatial Mapping', desc: 'Cross-referencing municipal coordinates and ward boundaries' },
+  { title: 'Duplicate Risk Check', desc: 'Checking existing open municipal complaints in proximity' },
+  { title: 'Departmental Routing', desc: 'Determining civic department and jurisdictional authority' },
+  { title: 'Severity and Priority Matrix', desc: 'Synthesizing urgency, public safety risk, and final triage assessment' }
+];
+
 export const ReportIssue = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -269,6 +277,8 @@ export const ReportIssue = () => {
   const { lat, lng, label } = useLocationStore();
   
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiProgress, setAiProgress] = useState(0);
+  const [aiStageIndex, setAiStageIndex] = useState(0);
   const [aiData, setAiData] = useState<any>(null);
   
   const [isSameIssue, setIsSameIssue] = useState<boolean | null>(null);
