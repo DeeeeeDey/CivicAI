@@ -58,9 +58,10 @@ export const DashboardLayout = () => {
     ADMIN: [
       { section: 'System', items: [
         { name: 'Overview', path: '/admin/dashboard', icon: BarChart2 },
-        { name: 'Users', path: '/admin/users', icon: Users },
-        { name: 'Departments', path: '/admin/departments', icon: FileText },
-        { name: 'Audit Logs', path: '/admin/logs', icon: Search },
+        { name: 'User Directory', path: '/admin/users', icon: Users },
+        { name: 'All Complaints', path: '/admin/complaints', icon: FileText },
+
+
         { name: 'Settings', path: '/admin/settings', icon: Settings }
       ]}
     ]

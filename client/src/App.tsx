@@ -1,4 +1,4 @@
-﻿import { useEffect } from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './theme/ThemeProvider';
@@ -20,7 +20,10 @@ import { About } from './pages/About';
 import { HowItWorks } from './pages/HowItWorks';
 import { MapPage } from './pages/MapPage';
 
-import { AdminDashboard } from './pages/admin/Dashboard';
+import { AdminOverview } from './pages/admin/Overview';
+import { AdminUsersPage } from './pages/admin/UsersPage';
+import { AdminComplaintsPage } from './pages/admin/ComplaintsPage';
+import { AdminSettingsPage } from './pages/admin/SettingsPage';
 import { CitizenDashboard } from './pages/citizen/Dashboard';
 import { MyComplaints } from './pages/citizen/MyComplaints';
 import { ReportIssue } from './pages/citizen/ReportIssue';
@@ -72,7 +75,8 @@ function App() {
                 <Route path="/register" element={user ? <Navigate to={`/${user.role.toLowerCase()}/dashboard`} replace /> : <Register />} />
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/transparency" element={<Transparency />} />
-                <Route path="/track" element={<Track />} />`n                <Route path="/track/:id" element={<Track />} />
+                <Route path="/track" element={<Track />} />
+                <Route path="/track/:id" element={<Track />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/map" element={<MapPage />} />
                 
@@ -85,7 +89,7 @@ function App() {
                    <Route path="/citizen/dashboard" element={<CitizenDashboard />} />
                    <Route path="/citizen/report" element={<ReportIssue />} />
                    <Route path="/citizen/complaints" element={<MyComplaints />} />
-                   <Route path="/citizen/map" element={<div className="p-12 text-center text-ink-900">Community Map (To do)</div>} />
+                   <Route path="/citizen/map" element={<MapPage />} />
                    <Route path="/citizen/notifications" element={<div className="p-12 text-center text-ink-900">Notifications</div>} />
                    <Route path="/citizen/settings" element={<div className="p-12 text-center text-ink-900">Settings</div>} />
                  </Route>
@@ -93,7 +97,7 @@ function App() {
                  <Route element={<ProtectedRoute allowedRoles={['OFFICER']} />}>
                    <Route path="/officer/dashboard" element={<OfficerDashboard />} />
                    <Route path="/officer/queue" element={<OfficerDashboard />} />
-                   <Route path="/officer/verification" element={<div className="p-12 text-center text-ink-900">Verification Queue (To do)</div>} />
+                   <Route path="/officer/verification" element={<div className="p-12 text-center text-ink-900">Verification Queue</div>} />
                    <Route path="/officer/duplicates" element={<div className="p-12 text-center text-ink-900">Duplicates Manager</div>} />
                    <Route path="/officer/workers" element={<div className="p-12 text-center text-ink-900">Workers List</div>} />
                    <Route path="/officer/analytics" element={<div className="p-12 text-center text-ink-900">Analytics</div>} />
@@ -102,16 +106,15 @@ function App() {
 
                  <Route element={<ProtectedRoute allowedRoles={['WORKER']} />}>
                    <Route path="/worker/dashboard" element={<WorkerTasks />} />
-                   <Route path="/worker/history" element={<div className="p-12 text-center text-ink-900">Task History</div>} />
+                   <Route path="/worker/history" element={<WorkerTasks />} />
                    <Route path="/worker/profile" element={<div className="p-12 text-center text-ink-900">Profile</div>} />
                  </Route>
 
                  <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
-                   <Route path="/admin/dashboard" element={<AdminDashboard />} />
-                   <Route path="/admin/users" element={<AdminDashboard />} />
-                   <Route path="/admin/departments" element={<div className="p-12 text-center text-ink-900">Departments</div>} />
-                   <Route path="/admin/logs" element={<div className="p-12 text-center text-ink-900">Audit Logs</div>} />
-                   <Route path="/admin/settings" element={<div className="p-12 text-center text-ink-900">Settings</div>} />
+                   <Route path="/admin/dashboard" element={<AdminOverview />} />
+                   <Route path="/admin/users" element={<AdminUsersPage />} />
+                   <Route path="/admin/complaints" element={<AdminComplaintsPage />} />
+                   <Route path="/admin/settings" element={<AdminSettingsPage />} />
                  </Route>
               </Route>
               
