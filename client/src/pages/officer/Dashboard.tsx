@@ -4,7 +4,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { staggerContainer, scrollReveal } from '../../lib/motion';
-import { AlertTriangle, Bot, XCircle, Users, CheckCircle2, Clock, ArrowRight, Eye, ShieldAlert, Copy } from 'lucide-react';
+import { AlertTriangle, Bot, XCircle, Users, CheckCircle2, Clock, ArrowRight, Eye, ShieldAlert, Copy, RefreshCw, Trash2, Tag, Send } from 'lucide-react';
 import { api } from '../../api/axios';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -47,9 +47,50 @@ export const OfficerDashboard = () => {
   });
 
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
-  const [overrideReason, setOverrideReason] = useState('');
+  const [triageAction, setTriageAction] = useState<'dispatch' | 'reclassify' | 'discard'>('dispatch');
   const [selectedWorkerId, setSelectedWorkerId] = useState('');
+  const [dispatchNotes, setDispatchNotes] = useState('');
+  const [reclassifyCategory, setReclassifyCategory] = useState('');
+  const [reclassifySeverity, setReclassifySeverity] = useState(3);
+  const [reclassifyReason, setReclassifyReason] = useState('');
+  const [discardReason, setDiscardReason] = useState('');
+  const [markImproper, setMarkImproper] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const availableCategories = [
+    'Pothole',
+    'Damaged Road',
+    'Garbage Accumulation',
+    'Illegal Dumping',
+    'Water Leakage',
+    'Broken Streetlight',
+    'Drainage Problem',
+    'Fallen Tree',
+    'Damaged Footpath',
+    'Damaged Public Infrastructure',
+    'General Municipal Issue',
+    'Improper / Non-Civic Category'
+  ];
+
+  const discardPresets = [
+    'Non-Civic Media: Depicts a stage performance, concert, personal indoor scene, or unrelated entertainment photo.',
+    'False Report: Visual inspection confirms no civic hazard or municipal infrastructure damage.',
+    'Prank / Spam: Submission is not a genuine community infrastructure report.',
+    'Private Grounds: Issue is located on private residential/commercial property outside municipal purview.',
+    'Duplicate / Invalid: Already logged or not actionable by municipal teams.'
+  ];
+
+  const openReviewModal = (c: any) => {
+    setSelectedTicket(c);
+    setTriageAction('dispatch');
+    setSelectedWorkerId('');
+    setDispatchNotes('');
+    setReclassifyCategory(c.category?.name || 'General Municipal Issue');
+    setReclassifySeverity(c.severity || 3);
+    setReclassifyReason('');
+    setDiscardReason('');
+    setMarkImproper(true);
+  };
 
   // Filter complaints for the triage queue
   const displayComplaints = (allComplaints || []).filter((c: any) => {
@@ -62,35 +103,67 @@ export const OfficerDashboard = () => {
     return c.status !== 'RESOLVED' && c.status !== 'VERIFIED';
   });
 
-  const handleReview = async (id: string, action: 'accept' | 'override') => {
-    if (action === 'override' && !overrideReason) {
-      alert('Override reason required!');
-      return;
-    }
-    if (action === 'accept' && !selectedWorkerId) {
+  const handleDispatch = async () => {
+    if (!selectedWorkerId) {
       alert('Please select a field worker to assign this ticket to.');
       return;
     }
-
     setIsSubmitting(true);
     try {
-      if (action === 'accept') {
-        await api.post(`/officers/${id}/assign`, { workerId: selectedWorkerId });
-      } else {
-        await api.post(`/officers/${id}/override`, {
-          categoryId: selectedTicket.categoryId,
-          departmentId: selectedTicket.departmentId,
-          severity: selectedTicket.severity,
-          reason: overrideReason
-        });
-      }
+      await api.post(`/officers/${selectedTicket.id}/assign`, {
+        workerId: selectedWorkerId,
+        notes: dispatchNotes
+      });
       queryClient.invalidateQueries({ queryKey: ['officerComplaints'] });
       queryClient.invalidateQueries({ queryKey: ['officerStats'] });
       setSelectedTicket(null);
-      setOverrideReason('');
-      setSelectedWorkerId('');
     } catch (err: any) {
-      alert('Error processing review: ' + (err.response?.data?.error || err.message));
+      alert('Error dispatching worker: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReclassify = async () => {
+    if (!reclassifyReason.trim()) {
+      alert('Please explain the reclassification reason (this will be sent to the reporting citizen).');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await api.post(`/officers/${selectedTicket.id}/reclassify`, {
+        categoryName: reclassifyCategory,
+        severity: reclassifySeverity,
+        reason: reclassifyReason
+      });
+      queryClient.invalidateQueries({ queryKey: ['officerComplaints'] });
+      queryClient.invalidateQueries({ queryKey: ['officerStats'] });
+      setSelectedTicket(null);
+      alert('Category successfully updated! The citizen has been notified via in-app notification and email.');
+    } catch (err: any) {
+      alert('Error updating category: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDiscard = async () => {
+    if (!discardReason.trim()) {
+      alert('Please provide a reason for discarding this report (this will be sent to the reporting citizen).');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await api.post(`/officers/${selectedTicket.id}/discard`, {
+        reason: discardReason,
+        markImproperCategory: markImproper
+      });
+      queryClient.invalidateQueries({ queryKey: ['officerComplaints'] });
+      queryClient.invalidateQueries({ queryKey: ['officerStats'] });
+      setSelectedTicket(null);
+      alert('Report discarded as false/invalid. The citizen has been notified via in-app notification and email.');
+    } catch (err: any) {
+      alert('Error discarding report: ' + (err.response?.data?.error || err.message));
     } finally {
       setIsSubmitting(false);
     }
@@ -260,7 +333,7 @@ export const OfficerDashboard = () => {
                   </div>
                 </div>
 
-                <Button onClick={() => setSelectedTicket(c)} className="shrink-0 text-xs py-2 px-4">
+                <Button onClick={() => openReviewModal(c)} className="shrink-0 text-xs py-2 px-4">
                   Review & Dispatch
                 </Button>
               </GlassCard>
@@ -286,13 +359,22 @@ export const OfficerDashboard = () => {
               exit={{ opacity: 0, scale: 0.95 }}
               className="relative bg-surface w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-border"
             >
+              {/* Modal Header */}
               <div className="p-5 border-b border-border flex justify-between items-center bg-surface">
-                <h2 className="text-lg font-bold text-ink-900">Triage Ticket #{selectedTicket.publicId}</h2>
+                <div>
+                  <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2">
+                    Triage Ticket #{selectedTicket.publicId}
+                  </h2>
+                  <p className="text-xs text-ink-500 mt-0.5">
+                    Reported by {selectedTicket.citizen?.name || 'Citizen'} ({selectedTicket.citizen?.email || 'N/A'})
+                  </p>
+                </div>
                 <button onClick={() => setSelectedTicket(null)} className="text-ink-500 hover:text-ink-900">
                   <XCircle size={22} />
                 </button>
               </div>
 
+              {/* Modal Body */}
               <div className="p-6 overflow-y-auto space-y-5">
                 {/* Photo & Description */}
                 <div className="p-4 bg-ink-900/5 rounded-xl flex gap-4">
@@ -304,79 +386,228 @@ export const OfficerDashboard = () => {
                       className="w-28 h-24 shrink-0 rounded-xl"
                     />
                   )}
-                  <div>
-                    <p className="text-xs font-bold text-ink-400 uppercase mb-1">Issue Description</p>
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-ink-400 uppercase">Issue Description</p>
                     <p className="text-sm font-semibold text-ink-900">{selectedTicket.description}</p>
-                  </div>
-                </div>
-
-                {/* AI Assessment */}
-                <div className="p-4 border border-accent/20 bg-accent/5 rounded-xl relative">
-                  <div className="absolute top-4 right-4">
-                    <Badge color="accent">AI Multimodal</Badge>
-                  </div>
-                  <h3 className="font-bold text-ink-900 flex items-center gap-2 mb-3">
-                    <Bot className="text-accent" size={18} /> Automated AI Assessment
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs text-ink-500 font-bold uppercase">Predicted Category</p>
-                      <p className="font-semibold text-ink-900">{selectedTicket.category?.name || 'General'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-ink-500 font-bold uppercase">Assessed Severity</p>
-                      <p className="font-semibold text-ink-900">{selectedTicket.severity}/5</p>
+                    <div className="flex flex-wrap gap-2 pt-1 text-xs">
+                      <span className="font-mono text-ink-500">Current: {selectedTicket.category?.name || 'General'}</span>
+                      <span>•</span>
+                      <span className="font-mono text-ink-500">Severity: {selectedTicket.severity}/5</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Dispatch Field Worker */}
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-bold text-ink-900 block mb-1.5">Assign Municipal Field Worker</label>
-                    <select
-                      className="w-full p-2.5 rounded-xl border border-border bg-surface text-ink-900 font-medium focus:outline-none focus:ring-2 focus:ring-accent"
-                      value={selectedWorkerId}
-                      onChange={(e) => setSelectedWorkerId(e.target.value)}
-                    >
-                      <option value="">Select an available field worker...</option>
-                      {workers?.map((w: any) => (
-                        <option key={w.id} value={w.id}>
-                          {w.name} ({w.email}) — {w.activeTasksCount || 0} active tasks
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-bold text-ink-900 block mb-1.5">Override Notes / Instructions</label>
-                    <textarea
-                      className="w-full p-2.5 rounded-xl border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                      rows={2}
-                      placeholder="Optional notes or instructions for the worker..."
-                      value={overrideReason}
-                      onChange={(e) => setOverrideReason(e.target.value)}
-                    />
-                  </div>
+                {/* Action Navigation Tabs */}
+                <div className="grid grid-cols-3 gap-2 p-1 bg-ink-900/5 rounded-xl border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setTriageAction('dispatch')}
+                    className={`py-2 px-3 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                      triageAction === 'dispatch' ? 'bg-accent text-white shadow-sm' : 'text-ink-600 hover:text-ink-900'
+                    }`}
+                  >
+                    <Send size={14} /> Dispatch Worker
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTriageAction('reclassify')}
+                    className={`py-2 px-3 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                      triageAction === 'reclassify' ? 'bg-accent text-white shadow-sm' : 'text-ink-600 hover:text-ink-900'
+                    }`}
+                  >
+                    <RefreshCw size={14} /> Reclassify
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTriageAction('discard')}
+                    className={`py-2 px-3 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                      triageAction === 'discard' ? 'bg-danger text-white shadow-sm' : 'text-danger hover:bg-danger/10'
+                    }`}
+                  >
+                    <Trash2 size={14} /> Discard as False
+                  </button>
                 </div>
+
+                {/* TAB 1: DISPATCH WORKER */}
+                {triageAction === 'dispatch' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-bold text-ink-900 block mb-1.5">Assign Municipal Field Worker</label>
+                      <select
+                        className="w-full p-2.5 rounded-xl border border-border bg-surface text-ink-900 font-medium focus:outline-none focus:ring-2 focus:ring-accent"
+                        value={selectedWorkerId}
+                        onChange={(e) => setSelectedWorkerId(e.target.value)}
+                      >
+                        <option value="">Select an available field worker...</option>
+                        {workers?.map((w: any) => (
+                          <option key={w.id} value={w.id}>
+                            {w.name} ({w.email}) — {w.activeTasksCount || 0} active tasks
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-bold text-ink-900 block mb-1.5">Dispatch Instructions / Notes</label>
+                      <textarea
+                        className="w-full p-2.5 rounded-xl border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                        rows={2}
+                        placeholder="Instructions for the assigned worker..."
+                        value={dispatchNotes}
+                        onChange={(e) => setDispatchNotes(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 2: RECLASSIFY / FIX IMPROPER CATEGORY */}
+                {triageAction === 'reclassify' && (
+                  <div className="space-y-4 p-4 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/70 dark:border-blue-900">
+                    <div>
+                      <h4 className="font-bold text-sm text-blue-900 dark:text-blue-300 flex items-center gap-2">
+                        <Tag size={16} /> Reclassify Falsely Classified Problem
+                      </h4>
+                      <p className="text-xs text-ink-500 mt-1">
+                        Select the correct municipal category or mark as improper category. The citizen will be notified of this change by email and in-app alert.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-ink-800 uppercase block mb-1">Target Category</label>
+                      <select
+                        value={reclassifyCategory}
+                        onChange={(e) => setReclassifyCategory(e.target.value)}
+                        className="w-full p-2.5 rounded-xl border border-border bg-surface text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-accent"
+                      >
+                        {availableCategories.map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-ink-800 uppercase block mb-1">Adjusted Severity (1 to 5)</label>
+                      <div className="flex gap-2">
+                        {[1, 2, 3, 4, 5].map((lvl) => (
+                          <button
+                            key={lvl}
+                            type="button"
+                            onClick={() => setReclassifySeverity(lvl)}
+                            className={`flex-1 py-1.5 rounded-lg border text-xs font-bold transition-all ${
+                              reclassifySeverity === lvl
+                                ? 'bg-accent text-white border-accent shadow-sm'
+                                : 'bg-surface text-ink-700 border-border hover:bg-ink-100'
+                            }`}
+                          >
+                            {lvl} {lvl === 5 ? '(Critical)' : lvl === 1 ? '(Low)' : ''}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-ink-800 uppercase block mb-1">
+                        Reason for Reclassification <span className="text-danger">*</span>
+                      </label>
+                      <textarea
+                        rows={2}
+                        className="w-full p-2.5 rounded-xl border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                        placeholder="Explain why this category was corrected (e.g. Stage performance photo was falsely tagged as pothole)..."
+                        value={reclassifyReason}
+                        onChange={(e) => setReclassifyReason(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 3: DISCARD AS FALSE REPORT */}
+                {triageAction === 'discard' && (
+                  <div className="space-y-4 p-4 rounded-xl bg-red-50/60 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
+                    <div>
+                      <h4 className="font-bold text-sm text-red-900 dark:text-red-300 flex items-center gap-2">
+                        <Trash2 size={16} /> Discard Problem as False / Non-Civic
+                      </h4>
+                      <p className="text-xs text-red-700 dark:text-red-400 mt-1">
+                        Discarding marks this issue as REJECTED and terminates all further dispatch. The citizen will be notified with the explanation below.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-ink-800 uppercase block mb-1">Select Common Reason Preset</label>
+                      <select
+                        onChange={(e) => {
+                          if (e.target.value) setDiscardReason(e.target.value);
+                        }}
+                        className="w-full p-2 rounded-xl border border-border bg-surface text-xs font-medium focus:outline-none focus:ring-2 focus:ring-accent mb-2"
+                      >
+                        <option value="">Choose a reason template...</option>
+                        {discardPresets.map((p, idx) => (
+                          <option key={idx} value={p}>{p}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-ink-800 uppercase block mb-1">
+                        Officer Explanation <span className="text-danger">*</span>
+                      </label>
+                      <textarea
+                        rows={2}
+                        className="w-full p-2.5 rounded-xl border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                        placeholder="Explain why this problem is false or non-civic (emailed to the citizen)..."
+                        value={discardReason}
+                        onChange={(e) => setDiscardReason(e.target.value)}
+                      />
+                    </div>
+
+                    <label className="flex items-center gap-2 text-xs font-medium text-ink-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={markImproper}
+                        onChange={(e) => setMarkImproper(e.target.checked)}
+                        className="rounded border-border text-danger focus:ring-danger"
+                      />
+                      <span>Also label ticket category as &quot;Improper / Non-Civic Category&quot;</span>
+                    </label>
+                  </div>
+                )}
               </div>
 
-              <div className="p-4 border-t border-border bg-surface flex justify-end gap-3">
-                <Button
-                  variant="secondary"
-                  onClick={() => handleReview(selectedTicket.id, 'override')}
-                  disabled={isSubmitting}
-                  className="border-danger/40 text-danger hover:bg-danger hover:text-white text-xs"
-                >
-                  Override Classification
+              {/* Modal Footer Actions */}
+              <div className="p-4 border-t border-border bg-surface flex justify-between items-center">
+                <Button variant="secondary" onClick={() => setSelectedTicket(null)} className="text-xs">
+                  Cancel
                 </Button>
-                <Button
-                  onClick={() => handleReview(selectedTicket.id, 'accept')}
-                  disabled={isSubmitting || !selectedWorkerId}
-                  className="text-xs px-6"
-                >
-                  {isSubmitting ? 'Dispatching...' : 'Accept & Dispatch Worker'}
-                </Button>
+
+                {triageAction === 'dispatch' && (
+                  <Button
+                    onClick={handleDispatch}
+                    disabled={isSubmitting || !selectedWorkerId}
+                    className="text-xs px-6"
+                  >
+                    {isSubmitting ? 'Dispatching...' : 'Accept & Dispatch Worker'}
+                  </Button>
+                )}
+
+                {triageAction === 'reclassify' && (
+                  <Button
+                    onClick={handleReclassify}
+                    disabled={isSubmitting || !reclassifyReason.trim()}
+                    className="text-xs px-6 bg-accent text-white hover:bg-accent-hover"
+                  >
+                    {isSubmitting ? 'Updating...' : 'Save Reclassification & Notify Citizen'}
+                  </Button>
+                )}
+
+                {triageAction === 'discard' && (
+                  <Button
+                    onClick={handleDiscard}
+                    disabled={isSubmitting || !discardReason.trim()}
+                    className="text-xs px-6 bg-danger text-white hover:bg-danger-hover border-danger"
+                  >
+                    {isSubmitting ? 'Discarding...' : 'Discard Problem as False & Notify'}
+                  </Button>
+                )}
               </div>
             </motion.div>
           </div>

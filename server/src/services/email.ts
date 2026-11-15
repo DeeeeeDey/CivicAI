@@ -201,19 +201,30 @@ const getStatusEmailMeta = (publicId: string, status: string): StatusEmailMeta =
   }
 };
 
-export const sendStatusUpdateEmail = async (
-  toEmail: string,
-  publicId: string,
-  newStatus: string,
-  notes?: string,
-  userId?: string
-) => {
+export interface DispatchEmailOptions {
+  toEmail: string;
+  publicId: string;
+  meta: StatusEmailMeta;
+  notes?: string;
+  userId?: string;
+  customNotificationTitle?: string;
+  customNotificationMessage?: string;
+}
+
+export const sendDispatchedEmail = async ({
+  toEmail,
+  publicId,
+  meta,
+  notes,
+  userId,
+  customNotificationTitle,
+  customNotificationMessage
+}: DispatchEmailOptions) => {
   const cleanEmail = (toEmail || '').trim().toLowerCase();
   if (!cleanEmail || !cleanEmail.includes('@')) {
-    console.warn(`[Email Service] Skipped sending status email: invalid recipient email "${toEmail}" for #${publicId}`);
+    console.warn(`[Email Service] Skipped sending email: invalid recipient "${toEmail}" for #${publicId}`);
     return;
   }
-  const meta = getStatusEmailMeta(publicId, newStatus);
   const frontendUrl = process.env.FRONTEND_URL || 'https://civic-ai-2v9u.vercel.app';
   const cleanFrontendUrl = frontendUrl.replace(/\/+$/, '');
   const trackUrl = `${cleanFrontendUrl}/track/${publicId}`;
@@ -221,6 +232,8 @@ export const sendStatusUpdateEmail = async (
   // 1. In-app notification creation
   if (userId) {
     try {
+      const notifTitle = customNotificationTitle || meta.headerText;
+      const notifMsg = customNotificationMessage || (notes ? `${meta.message} (Note: ${notes})` : meta.message);
       const recent = await prisma.notification.findFirst({
         where: {
           userId,
@@ -232,8 +245,8 @@ export const sendStatusUpdateEmail = async (
         await prisma.notification.create({
           data: {
             userId,
-            title: meta.headerText,
-            message: notes ? `${meta.message} (Note: ${notes})` : meta.message,
+            title: notifTitle,
+            message: notifMsg,
             link: `/track/${publicId}`
           }
         });
@@ -359,7 +372,7 @@ export const sendStatusUpdateEmail = async (
         html
       });
       sentVia = 'smtp';
-      console.log(`[Email Service - SMTP] Sent status email to ${cleanEmail} for #${publicId} [${newStatus}]`);
+      console.log(`[Email Service - SMTP] Sent email to ${cleanEmail} for #${publicId}`);
     } catch (smtpErr) {
       console.error('[Email Service - SMTP Error]:', smtpErr);
     }
@@ -374,9 +387,9 @@ export const sendStatusUpdateEmail = async (
         html
       });
       sentVia = 'resend';
-      console.log(`[Email Service - Resend] Sent status email to ${cleanEmail} for #${publicId} [${newStatus}]`);
+      console.log(`[Email Service - Resend] Sent email to ${cleanEmail} for #${publicId}`);
     } catch (resendErr: any) {
-      console.warn(`[Email Service - Resend Notice] Failed delivering to ${cleanEmail}: ${resendErr?.message || resendErr}. (Note: Resend free sandbox only sends to the account owner email. For external users, configure a custom domain on Resend or set GMAIL_USER & GMAIL_APP_PASSWORD).`);
+      console.warn(`[Email Service - Resend Notice] Failed delivering to ${cleanEmail}: ${resendErr?.message || resendErr}.`);
     }
   }
 
@@ -392,7 +405,7 @@ export const sendStatusUpdateEmail = async (
         });
         sentVia = 'ethereal';
         previewUrl = nodemailer.getTestMessageUrl(info);
-        console.log(`[Email Service - Ethereal Test Mailbox] Delivered status email to ${cleanEmail} for #${publicId} [${newStatus}]`);
+        console.log(`[Email Service - Ethereal Test Mailbox] Delivered email to ${cleanEmail} for #${publicId}`);
         if (previewUrl) {
           console.log(`[Email Service - Web Preview]: ${previewUrl}`);
         }
@@ -405,8 +418,9 @@ export const sendStatusUpdateEmail = async (
   // 4. Update or create in-app notification with preview URL if available
   if (userId) {
     try {
-      const messageBody = notes ? `${meta.message} (Note: ${notes})` : meta.message;
-      const fullMessage = previewUrl ? `${messageBody} [Test Email Web Preview: ${previewUrl}]` : messageBody;
+      const notifTitle = customNotificationTitle || meta.headerText;
+      const baseMsg = customNotificationMessage || (notes ? `${meta.message} (Note: ${notes})` : meta.message);
+      const fullMessage = previewUrl ? `${baseMsg} [Test Email Web Preview: ${previewUrl}]` : baseMsg;
 
       const recent = await prisma.notification.findFirst({
         where: {
@@ -419,7 +433,7 @@ export const sendStatusUpdateEmail = async (
         await prisma.notification.create({
           data: {
             userId,
-            title: meta.headerText,
+            title: notifTitle,
             message: fullMessage,
             link: `/track/${publicId}`
           }
@@ -440,7 +454,6 @@ export const sendStatusUpdateEmail = async (
           action: 'NOTIFICATION_SENT',
           details: JSON.stringify({
             recipient: cleanEmail,
-            status: newStatus,
             transport: sentVia,
             subject: meta.subject,
             previewUrl: previewUrl || undefined
@@ -452,5 +465,84 @@ export const sendStatusUpdateEmail = async (
     // Non-fatal
   }
 
-  console.log(`[EMAIL DISPATCH LOG] To: ${cleanEmail} | Ticket: #${publicId} | Status: ${newStatus} | Transport: ${sentVia}${previewUrl ? ` | Preview: ${previewUrl}` : ''}`);
+  console.log(`[EMAIL DISPATCH LOG] To: ${cleanEmail} | Ticket: #${publicId} | Transport: ${sentVia}${previewUrl ? ` | Preview: ${previewUrl}` : ''}`);
+};
+
+export const sendStatusUpdateEmail = async (
+  toEmail: string,
+  publicId: string,
+  newStatus: string,
+  notes?: string,
+  userId?: string
+) => {
+  const meta = getStatusEmailMeta(publicId, newStatus);
+  return sendDispatchedEmail({ toEmail, publicId, meta, notes, userId });
+};
+
+export const sendClassificationUpdateEmail = async (
+  toEmail: string,
+  publicId: string,
+  oldCategory: string,
+  newCategory: string,
+  reason?: string,
+  userId?: string
+) => {
+  const meta: StatusEmailMeta = {
+    subject: `[CivicAI] Category Corrected: #${publicId}`,
+    badge: 'CATEGORY UPDATED',
+    headerText: 'Report Category Corrected by Officer',
+    message: `A municipal triage officer reviewed your complaint #${publicId} and corrected its classification from "${oldCategory || 'Unclassified'}" to "${newCategory}". This ensures accurate dispatch to the responsible department.`,
+    badgeBg: '#F0FDF4',
+    badgeText: '#166534',
+    badgeBorder: '#BBF7D0',
+    accentColor: '#16A34A',
+    bannerBg: '#F7FEFA',
+    buttonBg: '#16A34A',
+    buttonText: '#FFFFFF'
+  };
+
+  const notificationMessage = `Officer updated report #${publicId} category from "${oldCategory || 'General'}" to "${newCategory}".${reason ? ' Reason: ' + reason : ''}`;
+
+  return sendDispatchedEmail({
+    toEmail,
+    publicId,
+    meta,
+    notes: reason,
+    userId,
+    customNotificationTitle: 'Report Category Corrected',
+    customNotificationMessage: notificationMessage
+  });
+};
+
+export const sendDiscardUpdateEmail = async (
+  toEmail: string,
+  publicId: string,
+  reason?: string,
+  userId?: string
+) => {
+  const meta: StatusEmailMeta = {
+    subject: `[CivicAI] Report Discarded: #${publicId}`,
+    badge: 'DISCARDED / FALSE REPORT',
+    headerText: 'Report Discarded by Municipal Triage',
+    message: `A municipal officer reviewed your report #${publicId} and marked it as a false report, non-civic submission, or invalid problem. As it does not represent an active public civic hazard, the ticket has been closed without worker dispatch.`,
+    badgeBg: '#FEF2F2',
+    badgeText: '#991B1B',
+    badgeBorder: '#FECACA',
+    accentColor: '#DC2626',
+    bannerBg: '#FFF8F8',
+    buttonBg: '#DC2626',
+    buttonText: '#FFFFFF'
+  };
+
+  const notificationMessage = `Your report #${publicId} was discarded as a false/invalid report by municipal triage.${reason ? ' Reason: ' + reason : ''}`;
+
+  return sendDispatchedEmail({
+    toEmail,
+    publicId,
+    meta,
+    notes: reason,
+    userId,
+    customNotificationTitle: 'Report Discarded as False/Invalid',
+    customNotificationMessage: notificationMessage
+  });
 };

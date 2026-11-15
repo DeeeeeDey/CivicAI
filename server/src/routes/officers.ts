@@ -1,3 +1,4 @@
+import { sendClassificationUpdateEmail, sendDiscardUpdateEmail, sendStatusUpdateEmail } from '../services/email';
 import { Router } from 'express';
 import { PrismaClient, Role } from '@prisma/client';
 import { authenticate, requireRole, AuthRequest } from '../middlewares';
@@ -6,6 +7,17 @@ import { transitionComplaint, InvalidStateTransitionError } from '../services/st
 const router = Router();
 const prisma = new PrismaClient();
 router.use(authenticate, requireRole(Role.OFFICER, Role.ADMIN));
+
+
+router.get('/categories', async (req: AuthRequest, res, next) => {
+  try {
+    const categories = await prisma.category.findMany({
+      include: { department: true },
+      orderBy: { name: 'asc' }
+    });
+    res.json(categories);
+  } catch (err) { next(err); }
+});
 
 router.get('/stats', async (req: AuthRequest, res, next) => {
   try {
@@ -171,27 +183,202 @@ router.post('/:id/status', async (req: AuthRequest, res, next) => {
   }
 });
 
-router.post('/:id/override', async (req: AuthRequest, res, next) => {
+const reclassifyHandler = async (req: AuthRequest, res: any, next: any) => {
   try {
-    const { categoryId, departmentId, severity, reason } = req.body;
     const complaintId = req.params.id as string;
-    if (!reason) return res.status(400).json({ error: 'Reason required' });
+    const { categoryId, categoryName, severity, departmentId, reason } = req.body;
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ error: 'Reason for reclassification is required.' });
+    }
 
-    const comp = await prisma.complaint.update({
+    const comp = await prisma.complaint.findUnique({
       where: { id: complaintId },
-      data: { categoryId, departmentId, severity }
+      include: { category: true, citizen: true }
+    });
+    if (!comp) return res.status(404).json({ error: 'Complaint not found' });
+
+    const oldCatName = comp.category?.name || 'General';
+
+    // Resolve target category
+    let targetCatId = categoryId;
+    let targetCatName = categoryName;
+
+    if (categoryName && !categoryId) {
+      let catRecord = await prisma.category.findUnique({ where: { name: categoryName.trim() } });
+      if (!catRecord) {
+        catRecord = await prisma.category.create({
+          data: { name: categoryName.trim() }
+        });
+      }
+      targetCatId = catRecord.id;
+      targetCatName = catRecord.name;
+    } else if (categoryId) {
+      const catRecord = await prisma.category.findUnique({ where: { id: categoryId } });
+      if (catRecord) targetCatName = catRecord.name;
+    }
+
+    const updated = await prisma.complaint.update({
+      where: { id: complaintId },
+      data: {
+        categoryId: targetCatId,
+        departmentId: departmentId || comp.departmentId,
+        severity: typeof severity === 'number' ? severity : comp.severity
+      },
+      include: { category: true, citizen: true }
     });
 
+    // 1. Audit log
     await prisma.auditLog.create({
       data: {
         userId: req.user.id,
         complaintId: comp.id,
-        action: 'OVERRIDE',
-        details: JSON.stringify({ categoryId, departmentId, severity, reason })
+        action: 'RECLASSIFIED',
+        details: JSON.stringify({
+          fromCategory: oldCatName,
+          toCategory: targetCatName,
+          severity: updated.severity,
+          reason
+        })
       }
     });
-    
-    res.json(comp);
+
+    // 2. Status History
+    await prisma.statusHistory.create({
+      data: {
+        complaintId: comp.id,
+        status: comp.status,
+        notes: `Officer reclassified category from "${oldCatName}" to "${targetCatName}". Reason: ${reason}`
+      }
+    });
+
+    // 3. Notify reporting citizen via in-app notification and email
+    if (comp.citizen?.email) {
+      sendClassificationUpdateEmail(
+        comp.citizen.email,
+        comp.publicId,
+        oldCatName,
+        targetCatName || 'Updated Category',
+        reason,
+        comp.citizenId
+      ).catch(e => console.warn('Non-fatal: email send failed:', e));
+    }
+
+    // 4. Notify citizens of merged duplicate tickets
+    const mergedTickets = await prisma.complaint.findMany({
+      where: {
+        status: 'REJECTED',
+        aiAnalysis: { duplicateOf: comp.publicId }
+      },
+      include: { citizen: true }
+    });
+    for (const m of mergedTickets) {
+      if (m.citizen?.email && m.citizenId !== comp.citizenId) {
+        sendClassificationUpdateEmail(
+          m.citizen.email,
+          comp.publicId,
+          oldCatName,
+          targetCatName || 'Updated Category',
+          `Update on your merged issue #${m.publicId}: Primary ticket was reclassified. Reason: ${reason}`,
+          m.citizenId
+        ).catch(e => console.warn('Non-fatal: email send to merged citizen failed:', e));
+      }
+    }
+
+    res.json(updated);
+  } catch (err) { next(err); }
+};
+
+router.post('/:id/reclassify', reclassifyHandler);
+router.post('/:id/override', reclassifyHandler);
+
+router.post('/:id/discard', async (req: AuthRequest, res, next) => {
+  try {
+    const complaintId = req.params.id as string;
+    const { reason, markImproperCategory } = req.body;
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ error: 'Reason is required to discard a report as false/invalid.' });
+    }
+
+    const comp = await prisma.complaint.findUnique({
+      where: { id: complaintId },
+      include: { category: true, citizen: true }
+    });
+    if (!comp) return res.status(404).json({ error: 'Complaint not found' });
+
+    // Optionally mark category as Improper / Non-Civic
+    let categoryUpdate: any = {};
+    if (markImproperCategory) {
+      let improperCat = await prisma.category.findUnique({ where: { name: 'Improper / Non-Civic Category' } });
+      if (!improperCat) {
+        improperCat = await prisma.category.create({ data: { name: 'Improper / Non-Civic Category' } });
+      }
+      categoryUpdate.categoryId = improperCat.id;
+    }
+
+    // Cancel active assignments on this ticket
+    await prisma.assignment.updateMany({
+      where: { complaintId, completedAt: null },
+      data: { completedAt: new Date() }
+    });
+
+    const updated = await prisma.complaint.update({
+      where: { id: complaintId },
+      data: {
+        status: 'REJECTED',
+        ...categoryUpdate
+      },
+      include: { category: true, citizen: true }
+    });
+
+    // 1. Audit Log
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user.id,
+        complaintId: comp.id,
+        action: 'DISCARD_FALSE_REPORT',
+        details: JSON.stringify({ reason, markImproperCategory: !!markImproperCategory })
+      }
+    });
+
+    // 2. Status History
+    await prisma.statusHistory.create({
+      data: {
+        complaintId: comp.id,
+        status: 'REJECTED',
+        notes: `Officer discarded ticket as false/invalid: ${reason}`
+      }
+    });
+
+    // 3. Notify citizen via in-app & email
+    if (comp.citizen?.email) {
+      sendDiscardUpdateEmail(
+        comp.citizen.email,
+        comp.publicId,
+        reason,
+        comp.citizenId
+      ).catch(e => console.warn('Non-fatal: email send failed:', e));
+    }
+
+    // 4. Notify merged child tickets
+    const mergedTickets = await prisma.complaint.findMany({
+      where: {
+        status: 'REJECTED',
+        aiAnalysis: { duplicateOf: comp.publicId }
+      },
+      include: { citizen: true }
+    });
+    for (const m of mergedTickets) {
+      if (m.citizen?.email && m.citizenId !== comp.citizenId) {
+        sendDiscardUpdateEmail(
+          m.citizen.email,
+          comp.publicId,
+          `Update on your merged issue #${m.publicId}: Primary ticket was discarded as false/invalid. Reason: ${reason}`,
+          m.citizenId
+        ).catch(e => console.warn('Non-fatal: email send to merged citizen failed:', e));
+      }
+    }
+
+    res.json(updated);
   } catch (err) { next(err); }
 });
 

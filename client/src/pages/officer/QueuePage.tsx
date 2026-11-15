@@ -16,7 +16,10 @@ import {
   Bot,
   XCircle,
   ExternalLink,
-  Copy
+  Copy,
+  Tag,
+  Trash2,
+  RefreshCw
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Thumbnail } from '../../components/ui/ImageLightbox';
@@ -29,6 +32,94 @@ export const OfficerQueuePage = () => {
   const [selectedWorkerId, setSelectedWorkerId] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reclassify Modal State
+  const [reclassifyTicket, setReclassifyTicket] = useState<any>(null);
+  const [targetCategory, setTargetCategory] = useState('');
+  const [targetSeverity, setTargetSeverity] = useState(3);
+  const [reclassifyReason, setReclassifyReason] = useState('');
+
+  // Discard Modal State
+  const [discardTicket, setDiscardTicket] = useState<any>(null);
+  const [discardReason, setDiscardReason] = useState('');
+  const [markImproper, setMarkImproper] = useState(true);
+
+  const availableCategories = [
+    'Pothole',
+    'Damaged Road',
+    'Garbage Accumulation',
+    'Illegal Dumping',
+    'Water Leakage',
+    'Broken Streetlight',
+    'Drainage Problem',
+    'Fallen Tree',
+    'Damaged Footpath',
+    'Damaged Public Infrastructure',
+    'General Municipal Issue',
+    'Improper / Non-Civic Category'
+  ];
+
+  const discardPresets = [
+    'Non-Civic Media: Image portrays entertainment, stage performance, or indoor personal media.',
+    'False Report: Field inspection found zero civic damage or public infrastructure hazard.',
+    'Prank / Spam: Report is not a genuine community municipal issue.',
+    'Private Grounds: Location falls inside private residence or non-municipal compound.',
+    'Duplicate / Invalid: Already logged or non-actionable.'
+  ];
+
+  const openReclassifyModal = (ticket: any) => {
+    setReclassifyTicket(ticket);
+    setTargetCategory(ticket.category?.name || 'General Municipal Issue');
+    setTargetSeverity(ticket.severity || 3);
+    setReclassifyReason('');
+  };
+
+  const openDiscardModal = (ticket: any) => {
+    setDiscardTicket(ticket);
+    setDiscardReason('');
+    setMarkImproper(true);
+  };
+
+  const handleReclassifySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reclassifyTicket || !reclassifyReason.trim()) return;
+    setIsSubmitting(true);
+    try {
+      await api.post(`/officers/${reclassifyTicket.id}/reclassify`, {
+        categoryName: targetCategory,
+        severity: targetSeverity,
+        reason: reclassifyReason
+      });
+      queryClient.invalidateQueries({ queryKey: ['officerMasterQueue'] });
+      queryClient.invalidateQueries({ queryKey: ['officerStats'] });
+      setReclassifyTicket(null);
+      alert('Issue category reclassified! Citizen notified via email & in-app message.');
+    } catch (err: any) {
+      alert('Failed to reclassify: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDiscardSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!discardTicket || !discardReason.trim()) return;
+    setIsSubmitting(true);
+    try {
+      await api.post(`/officers/${discardTicket.id}/discard`, {
+        reason: discardReason,
+        markImproperCategory: markImproper
+      });
+      queryClient.invalidateQueries({ queryKey: ['officerMasterQueue'] });
+      queryClient.invalidateQueries({ queryKey: ['officerStats'] });
+      setDiscardTicket(null);
+      alert('Issue discarded as false/invalid! Citizen notified via email & in-app message.');
+    } catch (err: any) {
+      alert('Failed to discard: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const { data: complaints, isLoading, error } = useQuery({
     queryKey: ['officerMasterQueue'],
@@ -216,24 +307,42 @@ export const OfficerQueuePage = () => {
                   </div>
 
                   {/* Right actions */}
-                  <div className="flex sm:flex-col items-center gap-2 shrink-0 w-full sm:w-auto pt-2 sm:pt-0">
+                  <div className="flex sm:flex-col items-stretch gap-1.5 shrink-0 w-full sm:w-36 pt-2 sm:pt-0">
                     {isUnassigned ? (
-                      <Button onClick={() => setSelectedTicket(c)} className="text-xs w-full">
+                      <Button onClick={() => setSelectedTicket(c)} className="text-xs w-full py-1.5">
                         Dispatch Worker
                       </Button>
                     ) : (
                       <Button
                         variant="secondary"
                         onClick={() => setSelectedTicket(c)}
-                        className="text-xs w-full flex items-center justify-center gap-1"
+                        className="text-xs w-full py-1.5 flex items-center justify-center gap-1"
                       >
                         Reassign Worker
                       </Button>
                     )}
 
-                    <Link to={`/track/${c.publicId}`} className="w-full sm:w-auto">
-                      <Button variant="secondary" className="text-xs w-full flex items-center justify-center gap-1.5">
-                        <ExternalLink size={13} /> Track
+                    <Button
+                      variant="secondary"
+                      onClick={() => openReclassifyModal(c)}
+                      className="text-xs w-full py-1.5 flex items-center justify-center gap-1 text-ink-700 hover:text-accent hover:border-accent/40"
+                    >
+                      <Tag size={12} /> Reclassify
+                    </Button>
+
+                    {c.status !== 'REJECTED' && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => openDiscardModal(c)}
+                        className="text-xs w-full py-1.5 flex items-center justify-center gap-1 text-danger hover:bg-danger/5 hover:border-danger/30"
+                      >
+                        <Trash2 size={12} /> Discard False
+                      </Button>
+                    )}
+
+                    <Link to={`/track/${c.publicId}`} className="w-full">
+                      <Button variant="secondary" className="text-xs w-full py-1.5 flex items-center justify-center gap-1">
+                        <ExternalLink size={12} /> Track
                       </Button>
                     </Link>
                   </div>
@@ -324,6 +433,186 @@ export const OfficerQueuePage = () => {
                   </Button>
                   <Button type="submit" disabled={isSubmitting || !selectedWorkerId}>
                     {isSubmitting ? 'Dispatching...' : 'Confirm Assignment'}
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Reclassify Modal */}
+      <AnimatePresence>
+        {reclassifyTicket && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-ink-900/50 backdrop-blur-sm"
+              onClick={() => setReclassifyTicket(null)}
+            ></motion.div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-surface w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-border"
+            >
+              <div className="p-5 border-b border-border flex justify-between items-center bg-surface">
+                <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2">
+                  <Tag size={18} className="text-accent" /> Reclassify Ticket #{reclassifyTicket.publicId}
+                </h2>
+                <button onClick={() => setReclassifyTicket(null)} className="text-ink-500 hover:text-ink-900">
+                  <XCircle size={22} />
+                </button>
+              </div>
+
+              <form onSubmit={handleReclassifySubmit} className="p-6 space-y-4">
+                <div className="p-3 bg-ink-900/5 rounded-xl text-xs space-y-1">
+                  <p className="font-bold text-ink-900">Issue: {reclassifyTicket.description}</p>
+                  <p className="text-ink-500 font-mono">Current Category: {reclassifyTicket.category?.name || 'General'}</p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-ink-900 uppercase block mb-1">Target Category</label>
+                  <select
+                    value={targetCategory}
+                    onChange={(e) => setTargetCategory(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-border bg-surface text-ink-900 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-accent"
+                  >
+                    {availableCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-ink-900 uppercase block mb-1">Severity Level</label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((lvl) => (
+                      <button
+                        key={lvl}
+                        type="button"
+                        onClick={() => setTargetSeverity(lvl)}
+                        className={`flex-1 py-1.5 rounded-lg border text-xs font-bold transition-all ${
+                          targetSeverity === lvl
+                            ? 'bg-accent text-white border-accent shadow-sm'
+                            : 'bg-surface text-ink-700 border-border hover:bg-ink-100'
+                        }`}
+                      >
+                        {lvl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-ink-900 uppercase block mb-1">
+                    Reason for Reclassification <span className="text-danger">*</span>
+                  </label>
+                  <textarea
+                    required
+                    rows={2}
+                    placeholder="Explain why this problem is being reclassified (will be emailed to the reporting citizen)..."
+                    value={reclassifyReason}
+                    onChange={(e) => setReclassifyReason(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                  />
+                </div>
+
+                <div className="pt-2 flex justify-end gap-3">
+                  <Button variant="secondary" onClick={() => setReclassifyTicket(null)} type="button">
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting || !reclassifyReason.trim()} className="bg-accent text-white hover:bg-accent-hover">
+                    {isSubmitting ? 'Updating...' : 'Save & Notify Citizen'}
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Discard as False Modal */}
+      <AnimatePresence>
+        {discardTicket && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-ink-900/50 backdrop-blur-sm"
+              onClick={() => setDiscardTicket(null)}
+            ></motion.div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-surface w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-border"
+            >
+              <div className="p-5 border-b border-border flex justify-between items-center bg-surface">
+                <h2 className="text-lg font-bold text-danger flex items-center gap-2">
+                  <Trash2 size={18} /> Discard Issue as False Report (#{discardTicket.publicId})
+                </h2>
+                <button onClick={() => setDiscardTicket(null)} className="text-ink-500 hover:text-ink-900">
+                  <XCircle size={22} />
+                </button>
+              </div>
+
+              <form onSubmit={handleDiscardSubmit} className="p-6 space-y-4">
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs space-y-1">
+                  <p className="font-bold text-danger">Issue: {discardTicket.description}</p>
+                  <p className="text-ink-600">
+                    Discarding marks this issue as REJECTED. The citizen will be sent an email explaining why this report was discarded.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-ink-900 uppercase block mb-1">Select Preset Reason</label>
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) setDiscardReason(e.target.value);
+                    }}
+                    className="w-full p-2.5 rounded-xl border border-border bg-surface text-xs focus:outline-none focus:ring-2 focus:ring-accent"
+                  >
+                    <option value="">Choose a reason preset...</option>
+                    {discardPresets.map((preset, idx) => (
+                      <option key={idx} value={preset}>{preset}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-ink-900 uppercase block mb-1">
+                    Officer Explanation <span className="text-danger">*</span>
+                  </label>
+                  <textarea
+                    required
+                    rows={2}
+                    placeholder="Detailed explanation sent to the citizen..."
+                    value={discardReason}
+                    onChange={(e) => setDiscardReason(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                  />
+                </div>
+
+                <label className="flex items-center gap-2 text-xs font-medium text-ink-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={markImproper}
+                    onChange={(e) => setMarkImproper(e.target.checked)}
+                    className="rounded border-border text-danger focus:ring-danger"
+                  />
+                  <span>Also update category to &quot;Improper / Non-Civic Category&quot;</span>
+                </label>
+
+                <div className="pt-2 flex justify-end gap-3">
+                  <Button variant="secondary" onClick={() => setDiscardTicket(null)} type="button">
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting || !discardReason.trim()} className="bg-danger text-white hover:bg-danger-hover border-danger">
+                    {isSubmitting ? 'Discarding...' : 'Discard as False & Notify'}
                   </Button>
                 </div>
               </form>

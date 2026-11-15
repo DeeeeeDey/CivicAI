@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, CheckCircle2, Clock, AlertTriangle, FileText, Bot, Camera, ShieldCheck, Copy } from 'lucide-react';
+import { Search, CheckCircle2, Clock, AlertTriangle, FileText, Bot, Camera, ShieldCheck, Copy, XCircle, Tag } from 'lucide-react';
 import { api } from '../api/axios';
 import { Thumbnail } from '../components/ui/ImageLightbox';
 
@@ -138,11 +138,26 @@ export const Track = () => {
                   )}
 
                   {/* Header Strip */}
+                  {/* Discarded / False Report Notice */}
+                  {complaint.status === 'REJECTED' && !complaint.mergedInto && (
+                    <div className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border-2 border-red-300 dark:border-red-700 flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-red-200/70 text-red-900 flex items-center justify-center shrink-0">
+                        <XCircle size={20} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-red-900 dark:text-red-300">Ticket Discarded / Closed</h4>
+                        <p className="text-xs text-red-700 dark:text-red-400 mt-0.5">
+                          A municipal triage officer reviewed this report and marked it as a false report, non-civic submission, or non-actionable issue.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex justify-between items-start mb-6 pb-6 border-b border-border flex-wrap gap-4">
                      <div>
                         <div className="flex items-center gap-3 mb-2 flex-wrap">
                            <h2 className="text-2xl font-bold text-ink-900">#{complaint.publicId}</h2>
-                           <Badge color={isResolved ? 'success' : complaint.status === 'IN_PROGRESS' || complaint.status === 'ASSIGNED' ? 'warning' : 'info'}>
+                           <Badge color={complaint.status === 'REJECTED' ? 'danger' : isResolved ? 'success' : complaint.status === 'IN_PROGRESS' || complaint.status === 'ASSIGNED' ? 'warning' : 'info'}>
                               {complaint.status.replace('_', ' ')}
                            </Badge>
                            <Badge color="default">{complaint.category || 'General Issue'}</Badge>
@@ -220,7 +235,7 @@ export const Track = () => {
                            {complaint.history.map((item:any, idx:number) => (
                               <div key={idx} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
                                  <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-surface shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 text-ink-500">
-                                    {item.type === 'AI' ? <Bot size={16} className="text-accent"/> : item.type === 'REPORTED' ? <FileText size={16}/> : <CheckCircle2 size={16} className="text-success"/>}
+                                    {item.type === 'AI' ? <Bot size={16} className="text-accent"/> : item.type === 'REPORTED' ? <FileText size={16}/> : item.type === 'REJECTED' ? <XCircle size={16} className="text-danger"/> : <CheckCircle2 size={16} className="text-success"/>}
                                  </div>
                                  <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-border bg-white shadow-sm">
                                     <div className="flex items-center justify-between mb-1">
