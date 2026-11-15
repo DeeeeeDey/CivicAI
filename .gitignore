@@ -10,3 +10,6 @@ server/node_modules/
 patch*.py
 test-route.ts
 server/test-route.ts
+
+.vercel
+.env*
