@@ -40,7 +40,7 @@ export const MyComplaints = () => {
           <h1 className="text-3xl font-bold text-ink-900 mb-2">My Complaints</h1>
           <p className="text-ink-500">Track the status, timeline, and resolution proof for issues you have reported.</p>
         </div>
-        <Link to="/report">
+        <Link to="/citizen/report">
           <Button className="w-full md:w-auto">+ Report New Issue</Button>
         </Link>
       </div>
@@ -103,7 +103,7 @@ export const MyComplaints = () => {
               : "Try adjusting your filter or search keywords."}
           </p>
           {myComplaints.length === 0 && (
-            <Link to="/report">
+            <Link to="/citizen/report">
               <Button>Report an Issue Now</Button>
             </Link>
           )}

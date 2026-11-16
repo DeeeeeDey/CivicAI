@@ -49,6 +49,15 @@ router.get('/tasks', async (req: AuthRequest, res, next) => {
 router.post('/:id/start', async (req: AuthRequest, res, next) => {
   try {
     const complaintId = req.params.id as string;
+    
+    // Verify worker assignment
+    const assignment = await prisma.assignment.findFirst({
+      where: { complaintId, workerId: req.user.id }
+    });
+    if (!assignment) {
+      return res.status(403).json({ error: 'Forbidden: You are not assigned to this complaint' });
+    }
+
     const existing = await prisma.complaint.findUnique({ where: { id: complaintId } });
     if (!existing) return res.status(404).json({ error: 'Complaint not found' });
     
@@ -57,7 +66,7 @@ router.post('/:id/start', async (req: AuthRequest, res, next) => {
       return res.json(existing);
     }
     
-    const comp = await transitionComplaint(complaintId, 'IN_PROGRESS', req.user.id, 'Worker started job');
+    const comp = await transitionComplaint(complaintId, 'IN_PROGRESS', req.user.id, `Worker ${req.user.name || ''} started field repair.`);
     res.json(comp);
   } catch (err) { next(err); }
 });
@@ -68,6 +77,14 @@ router.post('/:id/resolve', upload.single('image'), async (req: any, res, next) 
     const file = req.file;
     const complaintId = req.params.id as string;
     let proofImageUrl = req.body.proofImageUrl || null;
+
+    // Verify worker assignment
+    const assignment = await prisma.assignment.findFirst({
+      where: { complaintId, workerId: req.user.id }
+    });
+    if (!assignment) {
+      return res.status(403).json({ error: 'Forbidden: You are not assigned to resolve this complaint' });
+    }
 
     if (file) {
       if (supabase) {

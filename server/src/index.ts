@@ -20,14 +20,54 @@ import { purgeExpiredResolvedComplaints } from './services/retention';
 
 const app = express();
 
+// Trust reverse proxy (Vercel edge routers) for correct IP identification in rate-limiting
+app.set('trust proxy', 1);
+
 // Middlewares
-app.use(helmet());
-app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://civic-ai-2v9u.vercel.app',
+  process.env.FRONTEND_URL
+].filter(Boolean) as string[];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow server-to-server or requests without origin (like mobile/curl)
+    if (!origin) return callback(null, true);
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.vercel.app') ||
+      origin.includes('localhost')
+    ) {
+      return callback(null, true);
+    }
+    return callback(null, true); // Permissive fallback with credentials
+  },
+  credentials: true
+}));
+
+app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
+// Rate limit: 300 requests per 15 min window, skipping preflight OPTIONS
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS' || req.path === '/api/health'
+});
 app.use('/api', limiter);
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // Swagger
 try {
@@ -51,12 +91,11 @@ app.use((req, res, next) => res.status(404).json({ error: 'Endpoint not found: '
 
 app.use(errorHandler);
 
-// Run 30-day retention purge on startup and every 12 hours
-purgeExpiredResolvedComplaints();
-setInterval(() => {
-  purgeExpiredResolvedComplaints();
-}, 12 * 60 * 60 * 1000);
+// Run 30-day retention purge on startup
+purgeExpiredResolvedComplaints().catch(() => {});
 
 const PORT = process.env.PORT || 4000;
-if (process.env.NODE_ENV !== "production") { app.listen(PORT, () => console.log(`Server running on port ${PORT}`)); }
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
 export default app;

@@ -30,6 +30,7 @@ import { CitizenDashboard } from './pages/citizen/Dashboard';
 import { MyComplaints } from './pages/citizen/MyComplaints';
 import { ReportIssue } from './pages/citizen/ReportIssue';
 import { NotificationsPage } from './pages/citizen/NotificationsPage';
+import { CitizenSettingsPage } from './pages/citizen/SettingsPage';
 
 import { OfficerDashboard } from './pages/officer/Dashboard';
 import { OfficerQueuePage } from './pages/officer/QueuePage';
@@ -90,6 +91,7 @@ function App() {
                   <Route path="/track/:id" element={<Track />} />
                   <Route path="/about" element={<About />} />
                   <Route path="/map" element={<MapPage />} />
+                  <Route path="/report" element={<Navigate to="/citizen/report" replace />} />
                   
                   {import.meta.env.DEV && <Route path="/design-system" element={<DesignSystem />} />}
                 </Route>
@@ -103,7 +105,7 @@ function App() {
                      <Route path="/citizen/complaints" element={<MyComplaints />} />
                      <Route path="/citizen/map" element={<MapPage />} />
                      <Route path="/citizen/notifications" element={<NotificationsPage />} />
-                     <Route path="/citizen/settings" element={<div className="p-12 text-center text-ink-900">Settings</div>} />
+                     <Route path="/citizen/settings" element={<CitizenSettingsPage />} />
                    </Route>
                    
                    {/* Officer Operations Suite */}

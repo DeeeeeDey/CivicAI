@@ -274,11 +274,40 @@ router.post('/', authenticate, upload.single('image'), async (req: any, res: any
     // 1. Generate guaranteed unique public ID
     const publicId = await generateUniquePublicId();
 
-    // 2. Fetch or create category and ward
-    const catName = category || 'General';
+    // 2. Fetch or create category and link to appropriate municipal department
+    const catName = category || 'General Municipal Issue';
     let catRecord = await prisma.category.findUnique({ where: { name: catName } });
     if (!catRecord) {
       catRecord = await prisma.category.create({ data: { name: catName } });
+    }
+
+    const departmentNameMap: Record<string, string> = {
+      'Pothole': 'Public Works',
+      'Damaged Road': 'Public Works',
+      'Damaged Footpath': 'Public Works',
+      'Water Leakage': 'Water Supply & Sewerage',
+      'Garbage Accumulation': 'Solid Waste Management',
+      'Illegal Dumping': 'Solid Waste Management',
+      'Broken Streetlight': 'Electricity & Public Lighting',
+      'Drainage Problem': 'Drainage & Sewerage',
+      'Fallen Tree': 'Parks & Horticulture',
+      'General Municipal Issue': 'Municipal Triage Desk',
+      'Non-Civic / Invalid': 'None'
+    };
+    const targetDeptName = departmentNameMap[catName] || 'Municipal Triage Desk';
+    let deptRecord = null;
+    if (targetDeptName !== 'None') {
+      deptRecord = await prisma.department.findUnique({ where: { name: targetDeptName } });
+      if (!deptRecord) {
+        deptRecord = await prisma.department.create({ data: { name: targetDeptName } });
+      }
+    }
+
+    if (!catRecord.departmentId && deptRecord) {
+      catRecord = await prisma.category.update({
+        where: { id: catRecord.id },
+        data: { departmentId: deptRecord.id }
+      });
     }
     
     let wardRecord = ward ? await prisma.ward.findFirst({ where: { name: ward } }) : null;

@@ -51,16 +51,37 @@ router.post('/:id/verify', async (req: AuthRequest, res, next) => {
   try {
     const { isResolved, rating, reason } = req.body;
     const complaintId = req.params.id as string;
+
+    const complaint = await prisma.complaint.findUnique({
+      where: { id: complaintId }
+    });
+
+    if (!complaint) {
+      return res.status(404).json({ error: 'Complaint not found' });
+    }
+
+    // Strict Ownership Enforcement: Prevent IDOR
+    if (complaint.citizenId !== req.user.id) {
+      return res.status(403).json({ error: 'Forbidden: You can only verify complaints you filed' });
+    }
+
+    if (complaint.status !== 'RESOLVED') {
+      return res.status(400).json({ error: 'Complaint is not in a resolvable verification state' });
+    }
     
     if (isResolved) {
-      const comp = await transitionComplaint(complaintId, 'VERIFIED', req.user.id, 'Citizen verified');
+      const comp = await transitionComplaint(complaintId, 'VERIFIED', req.user.id, 'Citizen verified repair quality');
       await prisma.resolution.updateMany({
         where: { complaintId },
-        data: { verificationStatus: 'VERIFIED', citizenRating: rating }
+        data: { verificationStatus: 'VERIFIED', citizenRating: rating || 5 }
       });
       res.json(comp);
     } else {
-      const comp = await transitionComplaint(complaintId, 'REOPENED', req.user.id, `Citizen rejected: ${reason}`);
+      const comp = await transitionComplaint(complaintId, 'REOPENED', req.user.id, `Citizen rejected repair: ${reason || 'Incomplete resolution'}`);
+      await prisma.resolution.updateMany({
+        where: { complaintId },
+        data: { verificationStatus: 'REJECTED' }
+      });
       res.json(comp);
     }
   } catch (err) { next(err); }

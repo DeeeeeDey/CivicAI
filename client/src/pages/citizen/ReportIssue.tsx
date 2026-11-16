@@ -283,6 +283,8 @@ export const ReportIssue = () => {
   
   const [isSameIssue, setIsSameIssue] = useState<boolean | null>(null);
   const [supportLoading, setSupportLoading] = useState(false);
+  const [submittedComplaint, setSubmittedComplaint] = useState<any>(null);
+  const [copiedTicket, setCopiedTicket] = useState(false);
   
   const handleFile = (e: any) => {
     if (e.target.files && e.target.files[0]) {
@@ -374,10 +376,12 @@ export const ReportIssue = () => {
       if (targetId) {
         await api.post(`/complaints/${encodeURIComponent(targetId)}/support`);
       }
+      setSubmittedComplaint({ publicId: targetId, isSupport: true });
       queryClient.invalidateQueries({ queryKey: ['complaints'] });
       setCurrentStep(5);
     } catch (err: any) {
       console.warn("Support request handled:", err);
+      setSubmittedComplaint({ publicId: targetId, isSupport: true });
       queryClient.invalidateQueries({ queryKey: ['complaints'] });
       setCurrentStep(5);
     } finally {
@@ -399,12 +403,24 @@ export const ReportIssue = () => {
         const compressed = await compressImage(file);
         fd.append('image', compressed);
       }
-      await api.post('/complaints', fd);
+      const res = await api.post('/complaints', fd);
+      setSubmittedComplaint(res.data);
       queryClient.invalidateQueries({ queryKey: ['complaints'] });
       setCurrentStep(5);
     } catch (err: any) {
       alert("Error submitting complaint: " + (err.response?.data?.error || err.message));
     }
+  };
+
+  const handleResetForm = () => {
+    setCurrentStep(1);
+    setDesc('');
+    setFile(null);
+    setPreviewUrl(null);
+    setAiData(null);
+    setIsSameIssue(null);
+    setSubmittedComplaint(null);
+    setCopiedTicket(false);
   };
 
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 5));
@@ -803,15 +819,63 @@ export const ReportIssue = () => {
 
           {/* STEP 5: SUBMIT */}
           {currentStep === 5 && (
-            <motion.div key="5" initial={{opacity:0, scale:0.95}} animate={{opacity:1, scale:1}} className="flex-1 flex flex-col items-center justify-center text-center">
-              <div className="w-20 h-20 bg-success/20 text-success rounded-full flex items-center justify-center mb-6">
+            <motion.div key="5" initial={{opacity:0, scale:0.95}} animate={{opacity:1, scale:1}} className="flex-1 flex flex-col items-center justify-center text-center py-6">
+              <div className="w-20 h-20 bg-success/20 text-success rounded-full flex items-center justify-center mb-6 shadow-lg shadow-success/10">
                  <CheckCircle2 size={40} />
               </div>
-              <h2 className="text-3xl font-bold text-ink-900 mb-2">Report Submitted!</h2>
-              <p className="text-ink-500 mb-8 max-w-md">Your issue has been logged, analyzed by AI, and routed to the correct department.</p>
-              <div className="flex gap-4">
-                 <Button onClick={() => navigate('/citizen/dashboard')}>Go to Dashboard</Button>
-                 <Button variant="secondary" onClick={() => window.location.reload()}>Report Another</Button>
+              <h2 className="text-3xl font-bold text-ink-900 mb-2">
+                {submittedComplaint?.isSupport ? 'Community Support Added!' : 'Report Successfully Registered!'}
+              </h2>
+              <p className="text-ink-500 mb-6 max-w-md">
+                {submittedComplaint?.isSupport
+                  ? 'Your voice has been added to this open community report to elevate its municipal priority.'
+                  : 'Your issue has been logged in the municipal ledger, classified by AI, and queued for departmental triage.'}
+              </p>
+
+              {/* Public Ticket ID Card & Copy */}
+              {submittedComplaint?.publicId && (
+                <div className="mb-8 p-4 bg-surface rounded-2xl border border-border shadow-sm flex flex-col sm:flex-row items-center gap-4 max-w-md w-full">
+                  <div className="text-left flex-1">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-ink-400">Official Municipal Ticket ID</p>
+                    <p className="text-2xl font-mono font-bold text-accent">#{submittedComplaint.publicId}</p>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    className="shrink-0 flex items-center gap-1.5 text-xs py-2 px-3"
+                    onClick={() => {
+                      navigator.clipboard.writeText(submittedComplaint.publicId);
+                      setCopiedTicket(true);
+                      setTimeout(() => setCopiedTicket(false), 2500);
+                    }}
+                  >
+                    {copiedTicket ? (
+                      <>
+                        <CheckCircle2 size={14} className="text-success" /> Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={14} /> Copy ID
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              <div className="flex flex-wrap justify-center gap-3">
+                {submittedComplaint?.publicId && (
+                  <Button
+                    onClick={() => navigate(`/track/${submittedComplaint.publicId}`)}
+                    className="px-6 shadow-lg shadow-accent/20 bg-accent text-white hover:bg-accent-hover"
+                  >
+                    Track This Ticket
+                  </Button>
+                )}
+                <Button variant="secondary" onClick={() => navigate('/citizen/dashboard')}>
+                  Go to Dashboard
+                </Button>
+                <Button variant="ghost" onClick={handleResetForm}>
+                  Report Another
+                </Button>
               </div>
             </motion.div>
           )}
