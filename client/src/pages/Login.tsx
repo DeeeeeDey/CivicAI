@@ -111,10 +111,8 @@ export const Login = () => {
       {/* Right Editorial Panel */}
       <div className="hidden md:flex w-1/2 relative bg-surface-glass overflow-hidden flex-col justify-between p-12 border-l border-border">
         <div className="relative z-10">
-          <Badge color="neutral" className="mb-4">Transparency &bull; Audit Trail</Badge>
-          <h2 className="text-2xl font-semibold text-ink-900 leading-snug max-w-md">
-            Verified field resolutions with immutable photo audit trails.
-          </h2>
+          <div className="inline-block px-3 py-1 rounded-full bg-white/50 border border-white text-ink-900 text-xs font-bold uppercase tracking-wider mb-6 shadow-sm">Transparency</div>
+          <h2 className="text-4xl font-serif text-ink-900 leading-tight max-w-md">"CivicAI has reduced our response time by over 40% in just three months."</h2>
         </div>
         <div className="relative z-10 mt-12 rounded-2xl overflow-hidden shadow-2xl border border-white/20">
            <img src="https://images.unsplash.com/photo-1519999482648-25049ddd37b1?auto=format&fit=crop&q=80&w=800" alt="City worker" className="object-cover h-[350px] w-full" />

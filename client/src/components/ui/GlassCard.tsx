@@ -1,4 +1,4 @@
-import React from 'react';
+import { motion } from 'framer-motion';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -6,23 +6,19 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
-  children: React.ReactNode;
-  interactive?: boolean;
-  className?: string;
-}
+export const GlassCard = ({ children, className, interactive = false, ...props }: any) => {
+  const Component = interactive ? motion.div : 'div';
+  const interactiveProps = interactive ? {
+    whileHover: { y: -2, transition: { type: 'spring', stiffness: 300 } }
+  } : {};
 
-export const GlassCard = ({ children, className, interactive = false, ...props }: GlassCardProps) => {
   return (
-    <div
-      className={cn(
-        "bg-surface rounded-xl border border-border p-5 sm:p-6 shadow-sm",
-        interactive && "hover:border-accent/40 transition-colors duration-150",
-        className
-      )}
+    <Component 
+      className={cn("glass rounded-[24px] p-6 sm:p-8", className)}
+      {...interactiveProps}
       {...props}
     >
       {children}
-    </div>
+    </Component>
   );
 };
