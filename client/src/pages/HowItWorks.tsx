@@ -462,13 +462,10 @@ export const HowItWorks = () => {
         viewport={{ once: true }}
         className="mt-28"
       >
-        <GlassCard className="p-8 sm:p-12 text-center max-w-4xl mx-auto space-y-6 relative overflow-hidden border-accent/30 shadow-2xl bg-gradient-to-b from-surface to-surface-glass">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-accent/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-info/10 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20"></div>
-
-          <Badge className="bg-accent/10 text-accent border-accent/20">Try It Live</Badge>
-          <h2 className="text-3xl sm:text-4xl font-bold text-ink-900">
-            Experience the Closed-Loop Civic Difference
+        <GlassCard className="p-8 sm:p-12 text-center max-w-4xl mx-auto space-y-6 border border-border bg-surface">
+          <Badge color="accent">Municipal Operations</Badge>
+          <h2 className="text-2xl sm:text-3xl font-semibold text-ink-900 tracking-tight">
+            Closed-loop municipal infrastructure triage
           </h2>
           <p className="text-ink-600 text-sm sm:text-base max-w-xl mx-auto">
             Ready to test automated AI vision triage or explore incidents already resolving in your municipality?

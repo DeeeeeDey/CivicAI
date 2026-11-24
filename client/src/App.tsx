@@ -76,7 +76,6 @@ function App() {
       <ThemeProvider>
         <AuthBootstrap>
           <LightboxProvider>
-            <div className="mesh-background"></div>
             <Router>
               <ScrollToTop />
               <Routes>
